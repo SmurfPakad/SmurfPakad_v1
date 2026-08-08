@@ -23,7 +23,9 @@
   <img src="https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white" alt="React">
   <img src="https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white" alt="PyTorch">
+  <img src="https://img.shields.io/badge/IBM_watsonx.ai-Granite_3.3-054ADA?logo=ibm&logoColor=white" alt="IBM watsonx.ai">
   <img src="https://img.shields.io/badge/Accuracy-98.5%25-success" alt="Accuracy">
+  <img src="https://img.shields.io/badge/FATF-Compliant-orange" alt="FATF">
 </p>
 
 ---
@@ -87,45 +89,69 @@ Or use **Google OAuth** for instant access.
 
 ## ✨ Features
 
+### 🛡️ SafeGuard Real-time Shield *(NEW)*
+| Feature | Description |
+|---------|-------------|
+| **Chrome Extension** | Intercepts UPI/wallet payments in real-time before money leaves |
+| **Instant Risk Scoring** | Sub-200ms risk assessment on every transaction |
+| **Cross-Platform** | Works across Paytm, PhonePe, GPay, and bank transfers |
+| **WebSocket Alerts** | Broadcasts high-risk detections to all connected dashboards |
+
+### 🔵 IBM watsonx.ai Integration *(NEW)*
+| Feature | Description |
+|---------|-------------|
+| **Granite 3.3 Model** | Enterprise AI for analyst brief generation |
+| **FATF Red Flag Mapping** | Automated regulatory compliance mapping |
+| **Safeguard Advisory** | AI-powered risk advisory on flagged transactions |
+| **Graceful Fallback** | Works without IBM credentials via local template engine |
+
+### 🎯 War Room Investigation *(NEW)*
+| Feature | Description |
+|---------|-------------|
+| **Interactive Graph** | Click nodes to investigate, view connections |
+| **XAI Panel** | Feature importance bars explain why each wallet was flagged |
+| **FATF Mapping** | See which FATF Red Flag indicators apply to each node |
+| **IBM AI Brief** | One-click analyst brief powered by watsonx.ai |
+| **SAR Generation** | Generate Suspicious Activity Reports from investigation |
+
+### 🌐 Cross-Platform Silo Breaker *(NEW)*
+| Feature | Description |
+|---------|-------------|
+| **Silo Visualization** | Shows money flowing across Paytm → PhonePe → GPay |
+| **Toggle View** | Switch between "Traditional" (blind) and "SmurfPakad" (full graph) |
+| **Innovation Story** | "Banks see one silo. SmurfPakad sees the whole picture." |
+
+### 🧠 AI-Powered Analysis
+| Feature | Description |
+|---------|-------------|
+| **GraphSAGE Model** | 2-layer GNN with 98.5% accuracy on Elliptic dataset |
+| **Pattern Detection** | Smurfing, Layering, Rapid Movement, Peeling Chains, Threshold Evasion |
+| **Risk Scoring** | 0-100 suspicion scores per wallet/transaction |
+| **Explainable AI** | Feature importance for every prediction |
+
+### 📊 Visualization & Reporting
+| Feature | Description |
+|---------|-------------|
+| **Live Threat Map** | Real-time animated canvas with WebSocket alert feed |
+| **Interactive Graph** | 2D/3D force-directed transaction network |
+| **Heatmap Analysis** | Risk distribution, pattern matrix, activity timeline |
+| **SAR PDF Reports** | FATF-compliant Suspicious Activity Reports with branded tables |
+| **Export Options** | Download graphs as PNG, data as CSV/JSON |
+
 ### 🔐 Authentication & Security
 | Feature | Description |
 |---------|-------------|
 | **OAuth 2.0** | Sign in with Google, GitHub, or Microsoft |
 | **JWT Tokens** | Secure session management with refresh tokens |
 | **Role-Based Access** | Analyst, Professional, and Enterprise tiers |
-| **API Key Management** | Generate and manage API keys for programmatic access |
-
-### 🧠 AI-Powered Analysis
-| Feature | Description |
-|---------|-------------|
-| **GraphSAGE Model** | 2-layer GNN with 98.5% accuracy |
-| **Pattern Detection** | Smurfing, Layering, Rapid Movement, Peeling Chains |
-| **Risk Scoring** | 0-100 suspicion scores per wallet/transaction |
-| **Real-time Inference** | Sub-second analysis on uploaded datasets |
-
-### 📊 Visualization & Reporting
-| Feature | Description |
-|---------|-------------|
-| **Interactive Graph** | 2D/3D force-directed transaction network visualization |
-| **Path Tracing** | Click any node to trace all connected transaction paths |
-| **Heatmap Analysis** | Risk distribution, pattern matrix, activity timeline |
-| **PDF Reports** | Generate compliance-ready AML reports |
-| **Export Options** | Download graphs as PNG, data as CSV/JSON |
-
-### 🤖 SmurfBot AI Assistant
-| Feature | Description |
-|---------|-------------|
-| **Gemini-Powered** | Natural language Q&A about blockchain forensics |
-| **Context-Aware** | Understands your uploaded data and analysis results |
-| **Always Available** | Floating chatbot accessible from any page |
 
 ### 📈 Dashboard & Monitoring
 | Feature | Description |
 |---------|-------------|
-| **Real-time Stats** | Total transactions, suspicious activity, risk trends |
-| **Upload History** | Track all analyzed datasets with status |
+| **Real-time Stats** | Animated count-up stats with stagger animations |
+| **Cross-Platform Graph** | Silo visualization embedded in dashboard |
 | **WebSocket Alerts** | Live notifications for high-risk detections |
-| **Benchmarks** | Model performance metrics and ROC curves |
+| **Notification Bell** | Badge count with red dot indicator |
 
 ---
 
@@ -163,9 +189,10 @@ Or use **Google OAuth** for instant access.
 | **NumPy/Pandas** | Data processing |
 | **scikit-learn** | Evaluation metrics |
 
-### Infrastructure
+### IBM & Infrastructure
 | Technology | Purpose |
 |------------|---------|
+| **IBM watsonx.ai** | Enterprise AI (Granite 3.3 model) |
 | **Supabase** | Backend-as-a-Service (BaaS) |
 | **Google Gemini** | AI chatbot API |
 | **GitHub Actions** | CI/CD pipeline |
@@ -385,7 +412,12 @@ Authorization: Bearer <token>
 | `GET` | `/analysis/{upload_id}/patterns` | Get detected patterns |
 | `GET` | `/analysis/{upload_id}/suspicious` | Get suspicious addresses |
 | `GET` | `/graph/{upload_id}/suspicious-subgraph` | Get visualization data |
-| `POST` | `/reports/generate` | Generate PDF report |
+| `POST` | `/reports/generate` | Generate PDF report (SAR/Compliance) |
+| `POST` | `/safeguard/check` | Real-time payment risk check |
+| `GET` | `/safeguard/stats` | SafeGuard global statistics |
+| `POST` | `/ibm-ai/analyst-brief` | Generate IBM watsonx.ai brief |
+| `POST` | `/ibm-ai/safeguard-advisory` | Get AI risk advisory |
+| `GET` | `/ibm-ai/status` | Check IBM watsonx.ai config status |
 | `WS` | `/ws/{upload_id}` | Real-time analysis updates |
 
 ### Example: Upload and Analyze
@@ -422,46 +454,62 @@ SmurfPakad/
 │       └── smurf_hunter_model.pt  # Trained model weights
 │
 ├── 📂 Backend/
-│   ├── main.py                    # FastAPI application entry
+│   ├── main.py                    # FastAPI entry + IBM router mount
+│   ├── .env.example               # All env vars template
 │   ├── requirements.txt           # Python dependencies
 │   ├── 📂 app/
-│   │   ├── config.py              # Environment configuration
+│   │   ├── config.py              # Environment config + IBM vars
 │   │   ├── dependencies.py        # Dependency injection
-│   │   ├── 📂 routers/            # API route handlers
+│   │   ├── 📂 routers/
 │   │   │   ├── auth.py            # Authentication endpoints
 │   │   │   ├── upload.py          # File upload handling
 │   │   │   ├── analysis.py        # ML analysis endpoints
 │   │   │   ├── graph.py           # Graph data endpoints
 │   │   │   ├── dashboard.py       # Dashboard stats
 │   │   │   ├── reports.py         # PDF report generation
+│   │   │   ├── safeguard.py       # ★ Real-time payment risk check
+│   │   │   ├── ibm_ai.py          # ★ IBM watsonx.ai brief/advisory
 │   │   │   └── ws.py              # WebSocket handlers
-│   │   ├── 📂 services/           # Business logic
+│   │   ├── 📂 services/
 │   │   │   ├── ml_service.py      # GNN inference & pattern detection
 │   │   │   ├── graph_service.py   # Graph construction
-│   │   │   └── analysis_service.py# Analysis orchestration
+│   │   │   ├── analysis_service.py# Analysis orchestration
+│   │   │   ├── safeguard_service.py# ★ SafeGuard rule engine
+│   │   │   ├── ibm_watsonx_service.py# ★ IBM Granite model client
+│   │   │   ├── fatf_service.py    # ★ FATF Red Flag mapping
+│   │   │   ├── report_service.py  # ★ SAR-grade PDF generation
+│   │   │   └── explainability_service.py # XAI service
 │   │   ├── 📂 schemas/            # Pydantic models
-│   │   └── 📂 core/               # Security & Supabase client
+│   │   └── 📂 core/               # Security, Supabase, WebSocket
 │   └── 📂 tests/                  # pytest test suite
+│
+├── 📂 demo/                       # ★ Hackathon demo scripts
+│   ├── simulate_attack.py         # 10-txn smurfing attack simulator
+│   └── seed_data.py               # Pre-seed SafeGuard stats
 │
 ├── 📂 src/                        # React frontend
 │   ├── 📂 components/
 │   │   ├── ChatBot.tsx            # Gemini AI assistant
-│   │   ├── DashboardLayout.tsx    # Authenticated layout
-│   │   ├── UltraGraphVisualization.tsx  # 2D/3D graph
+│   │   ├── DashboardLayout.tsx    # Layout + notification bell + LIVE
+│   │   ├── CrossPlatformGraph.tsx  # ★ Paytm/PhonePe/GPay silo viz
+│   │   ├── Hero.tsx               # ★ Animated counters + IBM badge
+│   │   ├── Navbar.tsx             # ★ IBM Hackathon badge
 │   │   └── 📂 ui/                 # shadcn components
 │   ├── 📂 pages/
 │   │   ├── Index.tsx              # Landing page
-│   │   ├── Dashboard.tsx          # Main dashboard
+│   │   ├── Dashboard.tsx          # ★ Cross-platform graph + CTAs
+│   │   ├── LiveThreatMap.tsx      # ★ Real-time animated threat map
+│   │   ├── WarRoom.tsx            # ★ Investigation workspace
 │   │   ├── Upload.tsx             # File upload
 │   │   ├── Analysis.tsx           # Analysis results
 │   │   ├── Graph.tsx              # Network visualization
 │   │   ├── Heatmap.tsx            # Risk heatmaps
-│   │   ├── Patterns.tsx           # Pattern details
-│   │   ├── Reports.tsx            # Report generation
+│   │   ├── Reports.tsx            # ★ SAR report gen + FATF banner
 │   │   └── Benchmarks.tsx         # Model performance
 │   ├── 📂 lib/
-│   │   └── api.ts                 # API client & types
-│   └── 📂 hooks/                  # Custom React hooks
+│   │   └── api.ts                 # ★ Full API client (all endpoints)
+│   └── 📂 data/
+│       └── featuresData.tsx       # ★ Updated feature list
 │
 ├── 📂 public/                     # Static assets
 ├── package.json                   # Frontend dependencies
@@ -469,6 +517,8 @@ SmurfPakad/
 ├── tailwind.config.ts             # Tailwind configuration
 └── README.md                      # This file
 ```
+
+> ★ = New files added for IBM International Hackathon
 
 ---
 
@@ -575,6 +625,7 @@ Contributions are welcome! Please follow these steps:
 
 ## 🙏 Acknowledgments
 
+- [IBM watsonx.ai](https://www.ibm.com/watsonx) for enterprise AI (Granite models)
 - [Elliptic Dataset](https://www.kaggle.com/datasets/ellipticco/elliptic-data-set) for Bitcoin AML data
 - [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/) for GNN framework
 - [shadcn/ui](https://ui.shadcn.com/) for beautiful components
@@ -584,6 +635,10 @@ Contributions are welcome! Please follow these steps:
 
 <p align="center">
   <strong>⭐ Star this repo if you found it helpful!</strong>
+</p>
+
+<p align="center">
+  Built for the <strong>IBM International Financial Hackathon</strong> 🏆
 </p>
 
 <p align="center">
