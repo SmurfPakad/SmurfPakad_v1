@@ -20,6 +20,9 @@ import Heatmap from "./pages/Heatmap";
 import AuthCallback from "./pages/AuthCallback";
 import LiveThreatMap from "./pages/LiveThreatMap";
 import WarRoom from "./pages/WarRoom";
+import AgentChat from "./pages/AgentChat";
+import Governance from "./pages/Governance";
+import FederatedDemo from "./pages/FederatedDemo";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +90,21 @@ const App = () => (
           <Route path="/cryptoflow/benchmarks" element={
             <ProtectedRoute>
               <Benchmarks />
+            </ProtectedRoute>
+          } />
+          <Route path="/cryptoflow/agent" element={
+            <ProtectedRoute>
+              <AgentChat />
+            </ProtectedRoute>
+          } />
+          <Route path="/cryptoflow/governance" element={
+            <ProtectedRoute>
+              <Governance />
+            </ProtectedRoute>
+          } />
+          <Route path="/cryptoflow/federated" element={
+            <ProtectedRoute>
+              <FederatedDemo />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -22,6 +22,9 @@ from app.routers import (
     ws_router,
     safeguard_router,
     ibm_ai_router,
+    agent_router,
+    governance_router,
+    federated_router,
 )
 from app.services.ml_service import ml_service
 
@@ -149,6 +152,15 @@ app.include_router(safeguard_router, prefix=API_V1_PREFIX)
 
 # IBM AI (watsonx.ai powered analyst briefs)
 app.include_router(ibm_ai_router, prefix=API_V1_PREFIX)
+
+# AML Agent (autonomous investigation agent powered by watsonx.ai)
+app.include_router(agent_router, prefix=API_V1_PREFIX)
+
+# AI Governance (bias detection, fairness, drift — watsonx.governance)
+app.include_router(governance_router, prefix=API_V1_PREFIX)
+
+# Federated Learning (cross-bank privacy-preserving training)
+app.include_router(federated_router, prefix=API_V1_PREFIX)
 
 
 # ==================== Health Check ====================
