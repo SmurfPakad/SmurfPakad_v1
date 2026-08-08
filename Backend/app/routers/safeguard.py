@@ -5,8 +5,10 @@ Used by the Chrome Extension SafeGuard feature.
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List
+from datetime import datetime
 
 from app.services.safeguard_service import safeguard_service
+from app.core.websocket import ws_manager
 
 router = APIRouter(prefix="/safeguard", tags=["safeguard"])
 
@@ -67,6 +69,7 @@ async def check_transaction(request: TransactionCheckRequest):
     Called by the Chrome Extension before a payment is processed.
     
     Returns risk score (0-1), risk level, and specific reasons.
+    If risk is high (>=0.5), broadcasts a live alert to the dashboard via WebSocket.
     """
     result = await safeguard_service.check_transaction(
         recipient=request.recipient,
@@ -76,6 +79,21 @@ async def check_transaction(request: TransactionCheckRequest):
         sender_history=request.senderHistory,
         currency=request.currency,
     )
+    
+    # Broadcast to dashboard if high risk — this powers the Live Threat Map
+    if result.get("riskScore", 0) >= 0.5:
+        await ws_manager.broadcast_safeguard_alert({
+            "recipient": request.recipient,
+            "amount": request.amount,
+            "platform": request.platform,
+            "senderId": request.senderId,
+            "currency": request.currency,
+            "riskScore": result["riskScore"],
+            "riskLevel": result["riskLevel"],
+            "reasons": result["reasons"],
+            "timestamp": datetime.now().isoformat(),
+        })
+    
     return result
 
 

@@ -22,10 +22,14 @@ const Navbar = () => {
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-crypto-blue/80 backdrop-blur-md py-3 shadow-lg' : 'py-6'}`}>
       <div className="container mx-auto px-4 flex justify-between items-center">
-        <div className="flex items-center">
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-white">
             Smurf<span className="text-crypto-purple">Pakad</span>
           </h1>
+          <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20">
+            <span className="text-blue-400 font-bold text-[9px]">IBM</span>
+            <span className="text-blue-300/60 text-[8px]">Hackathon</span>
+          </div>
         </div>
 
         {/* Desktop menu */}
@@ -71,7 +75,7 @@ const Navbar = () => {
             )}
           </Button>
           <AuthButton />
-          <Link to="#!">
+          <Link to="/cryptoflow/dashboard">
             <Button className="bg-crypto-purple hover:bg-crypto-dark-purple text-white w-full">Get Started</Button>
           </Link>
         </div>
@@ -116,7 +120,7 @@ const Navbar = () => {
                 <Button variant="ghost" className="text-gray-300 hover:text-white w-full justify-start">
                   Login
                 </Button>
-                <Link to="#!">
+                <Link to="/cryptoflow/dashboard">
                   <Button className="bg-crypto-purple hover:bg-crypto-dark-purple text-white w-full">Buy Now</Button>
                 </Link>
               </li>

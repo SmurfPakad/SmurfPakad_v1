@@ -10,6 +10,7 @@ from app.routers.reports import router as reports_router
 from app.routers.settings import router as settings_router
 from app.routers.ws import router as ws_router
 from app.routers.safeguard import router as safeguard_router
+from app.routers.ibm_ai import router as ibm_ai_router
 
 __all__ = [
     "auth_router",
@@ -21,4 +22,5 @@ __all__ = [
     "settings_router",
     "ws_router",
     "safeguard_router",
+    "ibm_ai_router",
 ]

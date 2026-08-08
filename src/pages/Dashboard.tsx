@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, AlertTriangle, TrendingUp, Users, Loader2 } from "lucide-react";
+import { Activity, AlertTriangle, TrendingUp, Users, Loader2, ShieldAlert, Crosshair, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import ThreeBackground from "@/components/ThreeBackground";
+import CrossPlatformGraph from "@/components/CrossPlatformGraph";
 import { dashboardApi, uploadApi, type Upload } from "@/lib/api";
 
 interface DashboardStats {
@@ -114,7 +115,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
           {statsDisplay.map((stat) => (
             <Card key={stat.title} className="backdrop-blur-sm hover:shadow-xl transition-all duration-300 bg-white border-gray-200 hover:bg-gray-50 dark:bg-white/5 dark:border-crypto-purple/20 dark:hover:bg-white/10 dark:hover:shadow-crypto-purple/20">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -136,6 +137,45 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
+
+        {/* Live Threat CTA + War Room */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link to="/cryptoflow/threats">
+            <Card className="bg-gradient-to-br from-red-500/10 to-red-900/20 border-red-500/20 backdrop-blur-xl hover:border-red-500/40 transition-all duration-300 cursor-pointer group h-full">
+              <CardContent className="pt-5 pb-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-red-500/20">
+                    <ShieldAlert className="h-7 w-7 text-red-400" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-white text-lg">Live Threat Map</p>
+                    <p className="text-sm text-gray-400">Real-time SafeGuard intercepts & anomaly feed</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-6 w-6 text-gray-600 group-hover:text-red-400 transition-colors" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/cryptoflow/warroom">
+            <Card className="bg-gradient-to-br from-purple-500/10 to-purple-900/20 border-purple-500/20 backdrop-blur-xl hover:border-purple-500/40 transition-all duration-300 cursor-pointer group h-full">
+              <CardContent className="pt-5 pb-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-purple-500/20">
+                    <Crosshair className="h-7 w-7 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-white text-lg">War Room</p>
+                    <p className="text-sm text-gray-400">Investigation workspace with IBM AI briefs</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-6 w-6 text-gray-600 group-hover:text-purple-400 transition-colors" />
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        {/* Cross-Platform Silo Visualization */}
+        <CrossPlatformGraph />
 
         {/* Recent uploads */}
         <Card className="backdrop-blur-sm bg-white border-gray-200 dark:bg-white/5 dark:border-crypto-purple/20">

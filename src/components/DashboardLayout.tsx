@@ -12,7 +12,10 @@ import {
   Menu,
   X,
   Sun,
-  Moon
+  Moon,
+  ShieldAlert,
+  Crosshair,
+  Bell
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -25,6 +28,8 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { name: "Dashboard", href: "/cryptoflow/dashboard", icon: LayoutDashboard },
+  { name: "Live Threats", href: "/cryptoflow/threats", icon: ShieldAlert },
+  { name: "War Room", href: "/cryptoflow/warroom", icon: Crosshair },
   { name: "Upload Data", href: "/cryptoflow/upload", icon: Upload },
   { name: "Analysis Results", href: "/cryptoflow/analysis", icon: BarChart3 },
   { name: "Transaction Graph", href: "/cryptoflow/graph", icon: Network },
@@ -156,21 +161,47 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <h1 className="text-xl font-semibold text-gray-900 dark:bg-gradient-to-r dark:from-white dark:to-gray-300 dark:bg-clip-text dark:text-transparent">
               {navigation.find(item => item.href === location.pathname)?.name || 'SmurfPakad'}
             </h1>
+            {/* Live indicator */}
+            <div className="ml-3 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              <span className="text-[10px] text-green-400 font-medium hidden sm:inline">LIVE</span>
+            </div>
           </div>
           
-          {/* Theme Toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleTheme}
-            className="rounded-full hover:bg-gray-100 dark:hover:bg-white/10"
-          >
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5 text-yellow-400" />
-            ) : (
-              <Moon className="h-5 w-5 text-gray-700" />
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* IBM Powered */}
+            <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/5 border border-blue-500/10">
+              <span className="text-blue-400 font-bold text-[9px]">IBM</span>
+              <span className="text-blue-300/50 text-[8px]">watsonx</span>
+            </div>
+            
+            {/* Notification Bell */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-full hover:bg-gray-100 dark:hover:bg-white/10 relative"
+            >
+              <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#0a0118]"></span>
+            </Button>
+            
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="rounded-full hover:bg-gray-100 dark:hover:bg-white/10"
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-5 w-5 text-yellow-400" />
+              ) : (
+                <Moon className="h-5 w-5 text-gray-700" />
+              )}
+            </Button>
+          </div>
         </header>
 
         {/* Page content */}
