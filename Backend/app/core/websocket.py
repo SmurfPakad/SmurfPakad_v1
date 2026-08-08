@@ -139,6 +139,39 @@ class ConnectionManager:
             },
             user_id
         )
+    
+    async def broadcast_safeguard_alert(
+        self,
+        alert_data: Dict[str, Any],
+    ):
+        """
+        Broadcast a SafeGuard payment interception alert to ALL connected clients.
+        Used when the Chrome Extension flags a high-risk transaction.
+        
+        This enables the Live Threat Map and War Room to show real-time intercepts.
+        """
+        message = {
+            "type": "safeguard_alert",
+            "data": alert_data,
+        }
+        await self.broadcast_to_all(message)
+    
+    async def broadcast_to_all(self, message: dict):
+        """
+        Broadcast a message to ALL connected WebSocket clients.
+        Used for global alerts like SafeGuard intercepts.
+        """
+        disconnected = []
+        for user_id, connections in self.active_connections.items():
+            for connection in connections:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    disconnected.append((connection, user_id))
+        
+        # Clean up any broken connections
+        for conn, uid in disconnected:
+            self.disconnect(conn, uid)
 
 
 # Global connection manager instance

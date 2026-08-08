@@ -135,6 +135,36 @@ export default function Reports() {
           </Card>
         )}
 
+        {/* SAR Info Banner — shows when SAR report type is selected */}
+        {reportType === 'sar' && (
+          <Card className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border-orange-500/20 dark:border-orange-500/30">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start gap-4">
+                <div className="p-2 rounded-lg bg-orange-500/20 shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-orange-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-orange-300 text-sm">Suspicious Activity Report (SAR)</h3>
+                  <p className="text-xs text-orange-300/70 mt-1 leading-relaxed">
+                    SAR reports include FATF Red Flag Indicator mapping, executive summary, structural patterns, 
+                    top suspicious addresses, and compliance recommendations. Generated using IBM watsonx.ai 
+                    Granite model analysis and SmurfPakad GNN.
+                  </p>
+                  <div className="flex items-center gap-3 mt-3">
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20">
+                      <span className="text-blue-400 font-bold text-[10px]">IBM</span>
+                      <span className="text-blue-300/70 text-[10px]">watsonx.ai</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500">FATF Compliant</span>
+                    <span className="text-[10px] text-gray-500">•</span>
+                    <span className="text-[10px] text-gray-500">PDF with Branded Tables</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Report generator */}
         <Card>
           <CardHeader>

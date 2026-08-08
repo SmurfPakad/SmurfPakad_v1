@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     # ML Model
     MODEL_PATH: str = "../AI/ML/smurf_hunter_model.pt"
     
+    # IBM watsonx.ai
+    IBM_WATSONX_API_KEY: Optional[str] = None
+    IBM_WATSONX_PROJECT_ID: Optional[str] = None
+    IBM_WATSONX_URL: str = "https://us-south.ml.cloud.ibm.com"
+    IBM_WATSONX_MODEL_ID: str = "ibm/granite-3-8b-instruct"
+    
     # Redis (for caching and rate limiting)
     REDIS_URL: Optional[str] = None  # Set to redis://localhost:6379 if using Redis
     

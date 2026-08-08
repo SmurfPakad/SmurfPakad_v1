@@ -18,6 +18,8 @@ import Patterns from "./pages/Patterns";
 import Benchmarks from "./pages/Benchmarks";
 import Heatmap from "./pages/Heatmap";
 import AuthCallback from "./pages/AuthCallback";
+import LiveThreatMap from "./pages/LiveThreatMap";
+import WarRoom from "./pages/WarRoom";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +37,16 @@ const App = () => (
           <Route path="/cryptoflow/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/cryptoflow/threats" element={
+            <ProtectedRoute>
+              <LiveThreatMap />
+            </ProtectedRoute>
+          } />
+          <Route path="/cryptoflow/warroom" element={
+            <ProtectedRoute>
+              <WarRoom />
             </ProtectedRoute>
           } />
           <Route path="/cryptoflow/upload" element={
@@ -87,3 +99,4 @@ const App = () => (
 );
 
 export default App;
+

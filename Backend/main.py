@@ -21,6 +21,7 @@ from app.routers import (
     settings_router,
     ws_router,
     safeguard_router,
+    ibm_ai_router,
 )
 from app.services.ml_service import ml_service
 
@@ -52,6 +53,8 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down SMURF HUNTER Backend...")
+    from app.services.ibm_watsonx_service import ibm_watsonx_service
+    await ibm_watsonx_service.close()
 
 
 # Create FastAPI application
@@ -143,6 +146,9 @@ app.include_router(ws_router)
 
 # Safeguard (Chrome Extension payment security)
 app.include_router(safeguard_router, prefix=API_V1_PREFIX)
+
+# IBM AI (watsonx.ai powered analyst briefs)
+app.include_router(ibm_ai_router, prefix=API_V1_PREFIX)
 
 
 # ==================== Health Check ====================
