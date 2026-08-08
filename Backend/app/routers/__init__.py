@@ -11,6 +11,9 @@ from app.routers.settings import router as settings_router
 from app.routers.ws import router as ws_router
 from app.routers.safeguard import router as safeguard_router
 from app.routers.ibm_ai import router as ibm_ai_router
+from app.routers.agent import router as agent_router
+from app.routers.governance import router as governance_router
+from app.routers.federated import router as federated_router
 
 __all__ = [
     "auth_router",
@@ -23,4 +26,7 @@ __all__ = [
     "ws_router",
     "safeguard_router",
     "ibm_ai_router",
+    "agent_router",
+    "governance_router",
+    "federated_router",
 ]
