@@ -16,7 +16,8 @@ import {
   ShieldAlert,
   Crosshair,
   Bell,
-  Bot
+  Bot,
+  Scale
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -34,6 +35,7 @@ const navigation = [
   { name: "AI Agent", href: "/cryptoflow/agent", icon: Bot },
   { name: "Federated ML", href: "/cryptoflow/federated", icon: Network },
   { name: "AI Governance", href: "/cryptoflow/governance", icon: Target },
+  { name: "Compliance", href: "/cryptoflow/compliance", icon: Scale },
   { name: "Upload Data", href: "/cryptoflow/upload", icon: Upload },
   { name: "Analysis Results", href: "/cryptoflow/analysis", icon: BarChart3 },
   { name: "Transaction Graph", href: "/cryptoflow/graph", icon: Network },
