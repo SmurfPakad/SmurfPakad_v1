@@ -23,6 +23,7 @@ import WarRoom from "./pages/WarRoom";
 import AgentChat from "./pages/AgentChat";
 import Governance from "./pages/Governance";
 import FederatedDemo from "./pages/FederatedDemo";
+import ComplianceDashboard from "./pages/ComplianceDashboard";
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,11 @@ const App = () => (
           <Route path="/cryptoflow/federated" element={
             <ProtectedRoute>
               <FederatedDemo />
+            </ProtectedRoute>
+          } />
+          <Route path="/cryptoflow/compliance" element={
+            <ProtectedRoute>
+              <ComplianceDashboard />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
