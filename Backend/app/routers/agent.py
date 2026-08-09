@@ -10,6 +10,7 @@ from typing import Optional, Dict, List
 from app.services.aml_agent_service import aml_agent, AMLAgentService
 from app.services.ibm_watsonx_service import ibm_watsonx_service
 from app.services.fatf_service import FATFService
+from app.services.audit_logger import audit_logger
 
 
 router = APIRouter(prefix="/agent", tags=["AML Agent"])
@@ -51,10 +52,29 @@ async def investigate_wallet(request: InvestigateRequest):
     Returns a complete investigation report with evidence chain.
     """
     try:
+        import time
+        t0 = time.time()
         result = await aml_agent.investigate(
             wallet_id=request.wallet_id,
             context=request.context,
         )
+        elapsed_ms = (time.time() - t0) * 1000
+
+        # Log to IBM Db2 (or SQLite fallback) for audit trail
+        audit_logger.log_investigation(
+            investigation_id=result.get("investigationId", ""),
+            wallet_id=request.wallet_id,
+            risk_score=result.get("riskScore", 0.0),
+            risk_level=result.get("riskLevel", "UNKNOWN"),
+            recommendation=result.get("recommendation", ""),
+            patterns_found=result.get("patternsFound", []),
+            fatf_flags=result.get("fatfFlags", []),
+            ibm_model_used="ibm/granite-3-3-8b-instruct",
+            investigation_time_ms=round(elapsed_ms, 2),
+        )
+
+        result["auditBackend"] = audit_logger.backend
+        result["isIBMDb2"] = audit_logger.is_ibm_db2
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Investigation failed: {str(e)}")
