@@ -85,3 +85,6 @@ AI/ML/training_history.json
 
 # Lock files (large)
 bun.lockb
+*.db
+
+hero/
