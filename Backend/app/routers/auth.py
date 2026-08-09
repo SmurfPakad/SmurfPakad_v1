@@ -29,7 +29,7 @@ async def google_oauth_redirect():
     if not client_id or client_id == "your-google-client-id":
         # Return a mock URL for development
         return {
-            "authorization_url": f"{settings.FRONTEND_URL}/cryptoflow/dashboard?code=mock_auth_code"
+            "authorization_url": f"{settings.FRONTEND_URL}/cryptoflow/auth/callback?code=mock_auth_code"
         }
     
     authorization_url = (

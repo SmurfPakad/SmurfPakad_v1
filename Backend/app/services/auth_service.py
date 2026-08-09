@@ -65,8 +65,8 @@ class AuthService:
         
         # Return with field names matching frontend expectations
         return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
+            "token": access_token,
+            "refreshToken": refresh_token,
             "token_type": "bearer",
             "user": {
                 "id": user["id"],
