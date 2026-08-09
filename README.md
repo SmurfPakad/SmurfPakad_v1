@@ -97,13 +97,43 @@ Or use **Google OAuth** for instant access.
 | **Cross-Platform** | Works across Paytm, PhonePe, GPay, and bank transfers |
 | **WebSocket Alerts** | Broadcasts high-risk detections to all connected dashboards |
 
-### 🔵 IBM watsonx.ai Integration *(NEW)*
+### 🔵 IBM watsonx.ai Integration *(DEEP)*
 | Feature | Description |
 |---------|-------------|
-| **Granite 3.3 Model** | Enterprise AI for analyst brief generation |
+| **Granite 3.3 Agent** | Autonomous 6-tool AML Investigation Agent (not just text gen) |
 | **FATF Red Flag Mapping** | Automated regulatory compliance mapping |
-| **Safeguard Advisory** | AI-powered risk advisory on flagged transactions |
+| **watsonx.governance** | Bias detection, fairness metrics, prediction drift monitoring |
+| **AI Audit Trail** | Every prediction logged with model version + timestamp |
 | **Graceful Fallback** | Works without IBM credentials via local template engine |
+
+### 🤖 AML Investigation Agent *(NEW — Hackathon Centerpiece)*
+| Feature | Description |
+|---------|-------------|
+| **Autonomous Pipeline** | Agent calls 6 tools in sequence: GNN → Patterns → FATF → TX Context → Cross-Platform → Synthesis |
+| **IBM watsonx.ai Brain** | Granite 3.3 synthesizes all evidence into a structured investigation report |
+| **Agent Chat UI** | Interactive chat interface — type any wallet ID to trigger full investigation |
+| **SAR Recommendation** | FILE_SAR / ESCALATE / MONITOR / DISMISS with full justification |
+| **Evidence Chain** | Expandable step-by-step tool outputs with timing |
+
+### 🔐 Federated Learning *(MEGA USP)*
+| Feature | Description |
+|---------|-------------|
+| **FedAvg Algorithm** | McMahan et al. (2017) — standard federated averaging |
+| **3-Bank Simulation** | Paytm, PhonePe, GPay train locally, share only gradients |
+| **Zero Data Exposure** | Raw transaction data never leaves each institution |
+| **vs Isolated Comparison** | Shows +6.8% accuracy gain from federation |
+| **Differential Privacy** | (ε=1.0, δ=1e-5)-DP Gaussian mechanism on gradients |
+| **GDPR Compliant** | Article 5(1)(c) data minimisation satisfied |
+
+### ⚖️ AI Governance & Compliance
+| Feature | Description |
+|---------|-------------|
+| **Fairness Score** | A-F grading across wallet categories + platforms |
+| **Bias Detection** | Demographic parity alerts, equalized odds proxy |
+| **Drift Monitoring** | 7-day rolling prediction distribution tracking |
+| **SAR Queue** | Track pending/overdue/filed Suspicious Activity Reports |
+| **FATF Jurisdiction Map** | Risk scores per regulatory jurisdiction |
+| **Compliance Audit** | Full audit trail exportable for regulators |
 
 ### 🎯 War Room Investigation *(NEW)*
 | Feature | Description |
@@ -418,6 +448,15 @@ Authorization: Bearer <token>
 | `POST` | `/ibm-ai/analyst-brief` | Generate IBM watsonx.ai brief |
 | `POST` | `/ibm-ai/safeguard-advisory` | Get AI risk advisory |
 | `GET` | `/ibm-ai/status` | Check IBM watsonx.ai config status |
+| `POST` | `/agent/investigate` | **★ AML Agent: full 6-tool autonomous investigation** |
+| `POST` | `/agent/chat` | **★ AML Agent: conversational interface** |
+| `GET` | `/agent/history` | Recent investigation history |
+| `GET` | `/agent/capabilities` | Agent tools + IBM config status |
+| `GET` | `/governance/fairness` | **★ AI fairness + bias detection report** |
+| `GET` | `/governance/drift` | Prediction drift monitoring |
+| `GET` | `/governance/audit` | Compliance audit trail |
+| `POST` | `/federated/simulate` | **★ Run federated learning simulation** |
+| `GET` | `/federated/status` | Federated training status |
 | `WS` | `/ws/{upload_id}` | Real-time analysis updates |
 
 ### Example: Upload and Analyze
@@ -449,36 +488,41 @@ curl http://localhost:8000/api/v1/analysis/abc123/patterns \
 SmurfPakad/
 ├── 📂 AI/
 │   └── 📂 ML/
-│       ├── models.py              # GraphSAGE model definition & training
-│       ├── models_colab.py        # Google Colab training notebook
-│       └── smurf_hunter_model.pt  # Trained model weights
+│       ├── models.py                  # GraphSAGE + GATv2 model definition
+│       ├── models_colab.py            # Google Colab training notebook
+│       ├── federated_learning.py      # ★ FedAvg cross-bank training
+│       ├── differential_privacy.py   # ★ (ε,δ)-DP Gaussian mechanism
+│       ├── synthetic_data_generator.py# ★ Indian UPI transaction generator
+│       └── smurf_hunter_model.pt      # Trained model weights
+│
+├── 📂 demo_data/
+│   └── upi_transactions_demo.csv      # ★ 360-row demo with real patterns
+│
+├── 📂 docs/
+│   ├── DEMO_SCRIPT.md                 # ★ 3-minute video demo script
+│   └── PITCH_DECK.md                  # ★ 10-slide pitch deck outline
 │
 ├── 📂 Backend/
-│   ├── main.py                    # FastAPI entry + IBM router mount
-│   ├── .env.example               # All env vars template
-│   ├── requirements.txt           # Python dependencies
+│   ├── main.py                        # FastAPI entry + all router mounts
+│   ├── Dockerfile                     # ★ IBM Code Engine deployment
+│   ├── .env.example                   # All env vars template
+│   ├── requirements.txt               # Python dependencies
 │   ├── 📂 app/
-│   │   ├── config.py              # Environment config + IBM vars
-│   │   ├── dependencies.py        # Dependency injection
 │   │   ├── 📂 routers/
-│   │   │   ├── auth.py            # Authentication endpoints
-│   │   │   ├── upload.py          # File upload handling
-│   │   │   ├── analysis.py        # ML analysis endpoints
-│   │   │   ├── graph.py           # Graph data endpoints
-│   │   │   ├── dashboard.py       # Dashboard stats
-│   │   │   ├── reports.py         # PDF report generation
-│   │   │   ├── safeguard.py       # ★ Real-time payment risk check
-│   │   │   ├── ibm_ai.py          # ★ IBM watsonx.ai brief/advisory
-│   │   │   └── ws.py              # WebSocket handlers
+│   │   │   ├── agent.py               # ★ AML Agent API
+│   │   │   ├── governance.py          # ★ AI Governance API
+│   │   │   ├── federated.py           # ★ Federated Learning API
+│   │   │   ├── auth.py
+│   │   │   ├── safeguard.py
+│   │   │   ├── ibm_ai.py
+│   │   │   └── ws.py
 │   │   ├── 📂 services/
-│   │   │   ├── ml_service.py      # GNN inference & pattern detection
-│   │   │   ├── graph_service.py   # Graph construction
-│   │   │   ├── analysis_service.py# Analysis orchestration
-│   │   │   ├── safeguard_service.py# ★ SafeGuard rule engine
-│   │   │   ├── ibm_watsonx_service.py# ★ IBM Granite model client
-│   │   │   ├── fatf_service.py    # ★ FATF Red Flag mapping
-│   │   │   ├── report_service.py  # ★ SAR-grade PDF generation
-│   │   │   └── explainability_service.py # XAI service
+│   │   │   ├── aml_agent_service.py   # ★ 6-tool autonomous agent
+│   │   │   ├── governance_service.py  # ★ Bias detection + drift
+│   │   │   ├── ml_service.py
+│   │   │   ├── ibm_watsonx_service.py
+│   │   │   ├── fatf_service.py
+│   │   │   └── safeguard_service.py
 │   │   ├── 📂 schemas/            # Pydantic models
 │   │   └── 📂 core/               # Security, Supabase, WebSocket
 │   └── 📂 tests/                  # pytest test suite
@@ -500,6 +544,10 @@ SmurfPakad/
 │   │   ├── Dashboard.tsx          # ★ Cross-platform graph + CTAs
 │   │   ├── LiveThreatMap.tsx      # ★ Real-time animated threat map
 │   │   ├── WarRoom.tsx            # ★ Investigation workspace
+│   │   ├── AgentChat.tsx          # ★ IBM AML Investigation Agent chat
+│   │   ├── FederatedDemo.tsx      # ★ Federated learning visualization
+│   │   ├── Governance.tsx         # ★ AI fairness + bias detection
+│   │   ├── ComplianceDashboard.tsx# ★ SAR queue + jurisdiction risk
 │   │   ├── Upload.tsx             # File upload
 │   │   ├── Analysis.tsx           # Analysis results
 │   │   ├── Graph.tsx              # Network visualization
@@ -507,7 +555,7 @@ SmurfPakad/
 │   │   ├── Reports.tsx            # ★ SAR report gen + FATF banner
 │   │   └── Benchmarks.tsx         # Model performance
 │   ├── 📂 lib/
-│   │   └── api.ts                 # ★ Full API client (all endpoints)
+│   │   └── api.ts                 # ★ Full API client (all endpoints incl. agent)
 │   └── 📂 data/
 │       └── featuresData.tsx       # ★ Updated feature list
 │
