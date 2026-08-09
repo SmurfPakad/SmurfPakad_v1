@@ -345,9 +345,17 @@ export default function LiveThreatMap() {
 
   // Fetch initial stats
   useEffect(() => {
-    safeguardApi.getStats().then(setStats).catch(console.error);
+    const safeSetStats = (data: any) => {
+      setStats({
+        totalChecks:       Number(data?.totalChecks       ?? 0) || 0,
+        totalFlagged:      Number(data?.totalFlagged      ?? 0) || 0,
+        flaggedRecipients: Number(data?.flaggedRecipients ?? 0) || 0,
+        flagRate:          Number(data?.flagRate          ?? 0) || 0,
+      });
+    };
+    safeguardApi.getStats().then(safeSetStats).catch(console.error);
     const interval = setInterval(() => {
-      safeguardApi.getStats().then(setStats).catch(() => {});
+      safeguardApi.getStats().then(safeSetStats).catch(() => {});
     }, 10000);
     return () => clearInterval(interval);
   }, []);

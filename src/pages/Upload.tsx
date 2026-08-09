@@ -178,28 +178,30 @@ export default function Upload() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              <a
-                href="/cryptoflow/demo_data/upi_transactions_demo.csv"
-                download="upi_transactions_demo.csv"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30 transition-colors text-sm font-medium"
-              >
-                <FileText className="h-4 w-4" />
-                upi_transactions_demo.csv
-                <span className="text-xs text-blue-400/60 ml-1">(UPI / Wallet format • 608 rows)</span>
+              <a href="/cryptoflow/demo_data/upi_transactions_demo.csv" download="upi_transactions_demo.csv"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30 transition-colors text-sm font-medium">
+                <FileText className="h-4 w-4" />upi_transactions_demo.csv
+                <span className="text-xs text-blue-400/60 ml-1">(UPI • 608 rows)</span>
               </a>
-              <a
-                href="/cryptoflow/demo_data/elliptic_style_demo.csv"
-                download="elliptic_style_demo.csv"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 transition-colors text-sm font-medium"
-              >
-                <FileText className="h-4 w-4" />
-                elliptic_style_demo.csv
-                <span className="text-xs text-purple-400/60 ml-1">(43-feature graph format • 500 nodes)</span>
+              <a href="/cryptoflow/demo_data/crypto_cluster_alpha.csv" download="crypto_cluster_alpha.csv"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-300 hover:bg-orange-600/30 transition-colors text-sm font-medium">
+                <FileText className="h-4 w-4" />crypto_cluster_alpha.csv
+                <span className="text-xs text-orange-400/60 ml-1">(Ethereum Mixer • 277 rows)</span>
+              </a>
+              <a href="/cryptoflow/demo_data/layering_network_aug.csv" download="layering_network_aug.csv"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600/20 border border-red-500/30 text-red-300 hover:bg-red-600/30 transition-colors text-sm font-medium">
+                <FileText className="h-4 w-4" />layering_network_aug.csv
+                <span className="text-xs text-red-400/60 ml-1">(Layering Network • 84 rows)</span>
+              </a>
+              <a href="/cryptoflow/demo_data/elliptic_style_demo.csv" download="elliptic_style_demo.csv"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 transition-colors text-sm font-medium">
+                <FileText className="h-4 w-4" />elliptic_style_demo.csv
+                <span className="text-xs text-purple-400/60 ml-1">(43-feature GNN • 500 nodes)</span>
               </a>
             </div>
             <p className="text-xs text-gray-500 mt-3">
-              <strong className="text-gray-400">UPI format:</strong> Source_Wallet_ID, Dest_Wallet_ID, Timestamp, Amount, Token_Type — used for wallet-graph analysis.
-              &nbsp; <strong className="text-gray-400">Elliptic format:</strong> txId + 43 numerical features + label — maps directly to best_model_tg.pt.
+              <strong className="text-gray-400">UPI/Crypto formats:</strong> Source_Wallet_ID, Dest_Wallet_ID, Timestamp, Amount, Token_Type.
+              &nbsp;<strong className="text-gray-400">Elliptic format:</strong> txId + 43 numerical features + label — maps directly to best_model_tg.pt.
             </p>
           </CardContent>
         </Card>

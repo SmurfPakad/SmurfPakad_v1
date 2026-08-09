@@ -733,7 +733,7 @@ export default function WarRoom() {
                       </div>
 
                       {/* Regulatory Flags */}
-                      {analystBrief.regulatoryFlags.length > 0 && (
+                      {(analystBrief.regulatoryFlags?.length ?? 0) > 0 && (
                         <div>
                           <h4 className="text-xs font-semibold text-orange-400/70 uppercase tracking-wider mb-2">
                             Regulatory Flags
@@ -747,7 +747,7 @@ export default function WarRoom() {
                       )}
 
                       {/* Recommendations */}
-                      {analystBrief.recommendations.length > 0 && (
+                      {(analystBrief.recommendations?.length ?? 0) > 0 && (
                         <div>
                           <h4 className="text-xs font-semibold text-green-400/70 uppercase tracking-wider mb-2">
                             Recommendations
