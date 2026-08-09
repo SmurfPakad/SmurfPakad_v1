@@ -11,7 +11,6 @@ import CTA from '@/components/CTA';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import ChatBot from '@/components/ChatBot';
-import ThreeBackground from '@/components/ThreeBackground';
 import useScrollAnimation from '@/utils/useScrollAnimation';
 
 const Index = () => {
@@ -24,8 +23,7 @@ const Index = () => {
   }, []);
   
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-crypto-blue dark:via-[#0d1117] dark:to-crypto-blue transition-colors duration-300">
-      <ThreeBackground variant="particles" />
+    <div className="min-h-screen bg-[#0a0a14] transition-colors duration-300">
       <Navbar />
       <Hero />
       <Features />
