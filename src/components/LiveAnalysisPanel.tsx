@@ -103,6 +103,8 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   const [maxScore, setMaxScore] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [receivedRealMessage, setReceivedRealMessage] = useState(false);
   
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,6 +112,7 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   const particleAnimationRef = useRef<number>(0);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [showNodeDetail, setShowNodeDetail] = useState<GraphNode | null>(null);
+  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Demo data for immediate visualization
   const demoData = useMemo<GraphData>(() => ({
