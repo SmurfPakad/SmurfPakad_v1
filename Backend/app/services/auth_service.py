@@ -81,7 +81,7 @@ class AuthService:
         Exchange Google OAuth code for user info
         """
         # The redirect_uri MUST match exactly what was used in the authorization request
-        redirect_uri = f"{settings.FRONTEND_URL}/cryptoflow/auth/callback"
+        redirect_uri = f"{settings.FRONTEND_URL}"
         
         async with httpx.AsyncClient() as client:
             # Exchange code for token
