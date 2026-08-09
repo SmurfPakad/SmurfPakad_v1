@@ -20,6 +20,13 @@ const Index = () => {
   // Set page title
   useEffect(() => {
     document.title = "SmurfPakad | AI-Powered Blockchain Money Laundering Detection";
+    
+    // Check if we are receiving an OAuth callback (code parameter)
+    // This happens if the user registered the root URL as the redirect URI
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has('code')) {
+      window.location.href = `/cryptoflow/auth/callback${window.location.search}`;
+    }
   }, []);
   
   return (

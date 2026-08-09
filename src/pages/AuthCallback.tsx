@@ -10,10 +10,16 @@ export default function AuthCallback() {
 
   useEffect(() => {
     // Google Implicit Flow returns parameters in the URL hash, e.g. #access_token=123&token_type=Bearer
+    // Authorization Code Flow returns 'code' in the query string
     const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-    const token = params.get('access_token');
-    const errorParam = params.get('error') || searchParams.get('error');
+    const hashParams = new URLSearchParams(hash);
+    
+    // Support both flows: code in query params OR access_token in hash
+    const authCode = searchParams.get('code');
+    const hashToken = hashParams.get('access_token');
+    
+    const token = authCode || hashToken;
+    const errorParam = hashParams.get('error') || searchParams.get('error');
 
     if (errorParam) {
       setError(`OAuth Error: ${errorParam}`);
@@ -22,7 +28,7 @@ export default function AuthCallback() {
     }
 
     if (!token) {
-      setError('No authorization token received');
+      setError('No authorization token or code received');
       setTimeout(() => navigate('/cryptoflow'), 3000);
       return;
     }
@@ -39,7 +45,7 @@ export default function AuthCallback() {
           email: response.user.email,
         };
         localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('authToken', response.access_token);
+        localStorage.setItem('authToken', response.token);
         
         // Use window.location for full page navigation to ensure state is fresh
         window.location.href = '/cryptoflow/dashboard';
