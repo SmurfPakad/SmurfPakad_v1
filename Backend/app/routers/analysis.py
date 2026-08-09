@@ -2,7 +2,10 @@
 Analysis Router
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from typing import Optional
+import json
+import asyncio
 
 from app.schemas.analysis import (
     AnalysisResponse,
@@ -162,6 +165,43 @@ async def get_visualization_subgraph(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
+
+
+@router.get("/stream/{upload_id}")
+async def stream_analysis_progress(
+    upload_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Server-Sent Events endpoint for real-time analysis progress.
+    Returns a stream of analysis stages: parsing -> graph_building -> scoring -> pattern_detection -> subgraph_extraction -> complete
+    """
+    from fastapi.responses import StreamingResponse
+    import asyncio
+    
+    user_id = current_user["sub"]
+    
+    async def event_generator():
+        # This endpoint is primarily for clients that prefer SSE over WebSocket
+        # The real-time updates are pushed via WebSocket by the upload_service
+        # This just provides a fallback
+        yield f"data: {json.dumps({'stage': 'connected', 'uploadId': upload_id})}\n\n"
+        
+        # In a real implementation, you'd subscribe to a message queue here
+        # For now, we'll just send a heartbeat
+        for i in range(60):  # 60 seconds timeout
+            await asyncio.sleep(1)
+            yield f"data: {json.dumps({'stage': 'heartbeat', 'progress': i})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 # This MUST be last - it's a wildcard that matches any path like /analysis/{upload_id}

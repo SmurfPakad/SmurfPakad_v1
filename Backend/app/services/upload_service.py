@@ -157,7 +157,7 @@ class UploadService:
         user_id: str
     ) -> None:
         """
-        Automatically run ML analysis after file upload
+        Automatically run ML analysis after file upload with real-time streaming
         """
         try:
             # Read file
@@ -175,8 +175,23 @@ class UploadService:
                 print(f"Empty dataframe for upload {upload_id}")
                 return
             
-            # Run ML analysis
-            results = ml_service.analyze_transactions(df)
+            # Stage 1: Parsing complete
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "parsing", 10, {"rows": len(df)})
+            
+            # Stage 2: Building graph
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "graph_building", 25, {"nodes": "building..."})
+            
+            # Run ML analysis with streaming
+            results = await self._run_ml_analysis_streaming(df, upload_id, user_id)
+            
+            # Stage 3: Scoring complete
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "scoring", 50, {"scores_computed": True})
+            
+            # Stage 4: Pattern detection
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "pattern_detection", 75, {"patterns": len(results.get("patterns", []))})
+            
+            # Stage 5: Subgraph extraction
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "subgraph_extraction", 90, {"subgraph_ready": True})
             
             # Extract metrics
             summary = results.get("summary", {})
@@ -221,12 +236,112 @@ class UploadService:
             for address in suspicious_addresses:
                 await supabase_service.save_suspicious_address(upload_id, address)
             
+            # Stage 6: Complete
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "complete", 100, {
+                "patterns": len(patterns),
+                "suspicious_addresses": len(suspicious_addresses),
+                "max_risk_score": max_risk_score
+            })
+            
             print(f"Auto-analysis complete for upload {upload_id}: {len(patterns)} patterns, {len(suspicious_addresses)} addresses")
             
         except Exception as e:
             print(f"Auto-analysis failed for upload {upload_id}: {e}")
             import traceback
             traceback.print_exc()
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "error", 0, {"error": str(e)})
+
+    async def _run_ml_analysis_streaming(self, df: pd.DataFrame, upload_id: str, user_id: str) -> Dict:
+        """Run ML analysis with intermediate progress updates"""
+        results = {
+            "predictions": [],
+            "suspicious_addresses": [],
+            "patterns": [],
+            "subgraph": None,
+            "summary": {}
+        }
+        
+        try:
+            # Step 1 & 2: Extract features and build graph
+            features, tx_ids, edge_index = ml_service._prepare_graph_data(df, None)
+            
+            if features is None:
+                return ml_service._fallback_analysis(df)
+            
+            # Stage: graph built
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "graph_building", 35, {
+                "num_nodes": len(tx_ids),
+                "num_edges": edge_index.shape[1] if edge_index is not None else 0
+            })
+            
+            # Step 3: Run model prediction
+            predictions, scores = ml_service.predict(features, edge_index)
+            
+            # Stage: scoring
+            await ws_manager.broadcast_analysis_stream(user_id, upload_id, "scoring", 55, {
+                "mean_score": float(scores.mean()),
+                "max_score": float(scores.max())
+            })
+            
+            # Step 4: Extract suspicious subgraph for visualization
+            subgraph = ml_service.extract_suspicious_subgraph(
+                features=features,
+                edge_index=edge_index,
+                tx_ids=tx_ids,
+                top_k=20,
+                hop=2
+            )
+            results["subgraph"] = subgraph
+            
+            # Build prediction results
+            for i, (tx_id, pred, score) in enumerate(zip(tx_ids, predictions, scores)):
+                results["predictions"].append({
+                    "transactionId": str(tx_id),
+                    "predictedLabel": "illicit" if pred == 1 else "licit",
+                    "suspiciousScore": float(score),
+                    "confidence": float(max(score, 1 - score)),
+                    "riskLevel": ml_service._get_risk_level(score)
+                })
+            
+            # Step 5: Detect patterns
+            results["patterns"] = ml_service._detect_patterns(
+                df, edge_index, scores, tx_ids
+            )
+            
+            # Stream each pattern as detected
+            for i, pattern in enumerate(results["patterns"]):
+                await ws_manager.broadcast_analysis_stream(user_id, upload_id, "pattern_detection", 70 + i * 3, {
+                    "pattern": pattern
+                })
+            
+            # Step 6: Find suspicious addresses
+            results["suspicious_addresses"] = ml_service._find_suspicious_addresses(
+                df, scores, tx_ids
+            )
+            
+            # Summary statistics
+            results["summary"] = {
+                "totalTransactions": len(tx_ids),
+                "suspiciousTransactions": int((scores > 0.5).sum()),
+                "highRiskTransactions": int((scores > 0.8).sum()),
+                "avgSuspiciousScore": float(scores.mean()),
+                "maxSuspiciousScore": float(scores.max()),
+                "patternsDetected": len(results["patterns"]),
+                "riskDistribution": {
+                    "critical": int((scores > 0.9).sum()),
+                    "high": int(((scores > 0.7) & (scores <= 0.9)).sum()),
+                    "medium": int(((scores > 0.5) & (scores <= 0.7)).sum()),
+                    "low": int((scores <= 0.5).sum())
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error in streaming ML analysis: {e}")
+            import traceback
+            traceback.print_exc()
+            return ml_service._fallback_analysis(df)
+        
+        return results
     
     async def get_upload_history(
         self,

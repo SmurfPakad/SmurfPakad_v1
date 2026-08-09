@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, AlertTriangle, TrendingUp, Users, Loader2, ShieldAlert, Crosshair, ChevronRight, Brain, Lock, Scale } from "lucide-react";
+import { Activity, AlertTriangle, TrendingUp, Users, Loader2, ShieldAlert, Crosshair, ChevronRight, Brain, Lock, Scale, Zap, Target, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -11,6 +11,8 @@ import FloatingRiskOrbs3D from "@/components/FloatingRiskOrbs3D";
 import LiveAlertBanner from "@/components/LiveAlertBanner";
 import { dashboardApi, uploadApi, type Upload } from "@/lib/api";
 import { usePageEntrance, useStaggerCards, useCountUp } from "@/hooks/useGSAP";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import SmurfingAttackDemo from "@/components/SmurfingAttackDemo";
 
 interface DashboardStats {
   totalTransactions: number;
@@ -25,6 +27,7 @@ export default function Dashboard() {
   const [recentUploads, setRecentUploads] = useState<Upload[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attackDemoOpen, setAttackDemoOpen] = useState(false);
 
   usePageEntrance(".dashboard-content");
   useStaggerCards(".stats-grid");
@@ -275,7 +278,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Quick actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="backdrop-blur-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-white border-gray-200 hover:bg-gray-50 dark:bg-white/5 dark:border-crypto-purple/20 dark:hover:bg-white/10 dark:hover:shadow-crypto-purple/20">
             <Link to="/cryptoflow/analysis">
               <CardHeader>
@@ -303,6 +306,20 @@ export default function Dashboard() {
                 <CardDescription className="text-gray-400">Create compliance reports for export</CardDescription>
               </CardHeader>
             </Link>
+          </Card>
+          <Card className="backdrop-blur-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-purple-600/20 to-cyan-600/20 border-purple-500/30 hover:border-purple-500/50 dark:bg-purple-600/10 dark:hover:bg-purple-600/20">
+            <Dialog open={attackDemoOpen} onOpenChange={setAttackDemoOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white shadow-lg shadow-purple-500/50 flex items-center justify-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  <span>Simulate Attack</span>
+                  <Target className="w-5 h-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-6xl max-h-[90vh] p-0 overflow-hidden">
+                <SmurfingAttackDemo />
+              </DialogContent>
+            </Dialog>
           </Card>
         </div>
       </div>

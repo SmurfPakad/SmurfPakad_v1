@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { uploadApi, type Upload as UploadType } from "@/lib/api";
+import LiveAnalysisPanel from "@/components/LiveAnalysisPanel";
 
 export default function Upload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -19,6 +20,7 @@ export default function Upload() {
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [columnMapping, setColumnMapping] = useState<any>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showLiveAnalysis, setShowLiveAnalysis] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -35,6 +37,7 @@ export default function Upload() {
     if (file) {
       setSelectedFile(file);
       setUploadComplete(false);
+      setShowLiveAnalysis(false);
       parseFilePreview(file);
     }
   };
@@ -67,14 +70,12 @@ export default function Upload() {
     const errors: string[] = [];
     const mapping: any = {};
     
-    // Normalize string for comparison: lowercase, remove underscores, spaces, and hyphens
     const normalize = (str: string) => str.toLowerCase().replace(/[_\s-]/g, '');
     
     expectedColumns.forEach(expected => {
       const normalizedExpected = normalize(expected.name);
       const match = headers.find(h => {
         const normalizedHeader = normalize(h);
-        // Check for exact match or if one contains the other
         return normalizedHeader === normalizedExpected || 
                normalizedHeader.includes(normalizedExpected) ||
                normalizedExpected.includes(normalizedHeader);
@@ -97,6 +98,7 @@ export default function Upload() {
     if (file) {
       setSelectedFile(file);
       setUploadComplete(false);
+      setShowLiveAnalysis(false);
     }
   };
 
@@ -111,10 +113,9 @@ export default function Upload() {
     setProgress(0);
     setUploadError(null);
 
-    // Simulate progress while uploading
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 90) return prev; // Stop at 90% until actual response
+        if (prev >= 90) return prev;
         return prev + 10;
       });
     }, 300);
@@ -125,6 +126,7 @@ export default function Upload() {
       setProgress(100);
       setUploadResult(result);
       setUploadComplete(true);
+      setShowLiveAnalysis(true);
     } catch (error: any) {
       clearInterval(progressInterval);
       setProgress(0);
@@ -144,9 +146,14 @@ export default function Upload() {
     setPreviewData([]);
     setColumnMapping(null);
     setValidationErrors([]);
+    setShowLiveAnalysis(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleAnalysisComplete = (results: any) => {
+    console.log('Analysis complete:', results);
   };
 
   return (
@@ -249,7 +256,7 @@ export default function Upload() {
                       </p>
                     </div>
                   </div>
-                  {!uploading && !uploadComplete && (
+                  {!uploading && !uploadComplete && !showLiveAnalysis && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -261,7 +268,7 @@ export default function Upload() {
                 </div>
 
                 {/* Column Mapping & Validation */}
-                {previewData.length > 0 && !uploading && !uploadComplete && (
+                {previewData.length > 0 && !uploading && !uploadComplete && !showLiveAnalysis && (
                   <Card className="mt-4 border-2 dark:bg-white/5">
                     <CardHeader>
                       <div className="flex items-center space-x-2">
@@ -361,7 +368,7 @@ export default function Upload() {
                   </Alert>
                 )}
 
-                {uploadComplete && (
+                {uploadComplete && !showLiveAnalysis && (
                   <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800">
                     <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                     <AlertDescription className="text-green-800 dark:text-green-200">
@@ -370,7 +377,7 @@ export default function Upload() {
                   </Alert>
                 )}
 
-                {!uploading && !uploadComplete && previewData.length > 0 && validationErrors.length === 0 && (
+                {!uploading && !uploadComplete && !showLiveAnalysis && previewData.length > 0 && validationErrors.length === 0 && (
                   <Button
                     className="w-full bg-crypto-purple hover:bg-crypto-dark-purple"
                     onClick={handleUpload}
@@ -379,7 +386,7 @@ export default function Upload() {
                   </Button>
                 )}
 
-                {!uploading && !uploadComplete && validationErrors.length > 0 && (
+                {!uploading && !uploadComplete && !showLiveAnalysis && validationErrors.length > 0 && (
                   <Button
                     className="w-full"
                     disabled
@@ -388,7 +395,14 @@ export default function Upload() {
                   </Button>
                 )}
 
-                {uploadComplete && (
+                {showLiveAnalysis && uploadResult && (
+                  <LiveAnalysisPanel 
+                    uploadId={uploadResult.id} 
+                    onComplete={handleAnalysisComplete}
+                  />
+                )}
+
+                {uploadComplete && !showLiveAnalysis && (
                   <Button
                     className="w-full bg-crypto-purple hover:bg-crypto-dark-purple"
                     onClick={() => navigate(`/cryptoflow/analysis${uploadResult?.id ? `?uploadId=${uploadResult.id}` : ''}`)}

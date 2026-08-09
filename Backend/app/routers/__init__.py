@@ -15,6 +15,7 @@ from app.routers.agent import router as agent_router
 from app.routers.governance import router as governance_router
 from app.routers.federated import router as federated_router
 from app.routers.watson_nlp import router as watson_nlp_router
+from app.routers.attack import router as attack_router
 
 __all__ = [
     "auth_router",
@@ -31,4 +32,5 @@ __all__ = [
     "governance_router",
     "federated_router",
     "watson_nlp_router",
+    "attack_router",
 ]

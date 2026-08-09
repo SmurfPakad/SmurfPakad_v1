@@ -155,6 +155,41 @@ class ConnectionManager:
             "data": alert_data,
         }
         await self.broadcast_to_all(message)
+
+    async def broadcast_analysis_stream(
+        self,
+        user_id: str,
+        upload_id: str,
+        stage: str,
+        progress: int,
+        data: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Broadcast real-time analysis progress to specific user.
+        Stages: parsing, graph_building, scoring, pattern_detection, subgraph_extraction, complete
+        """
+        message = {
+            "type": "analysis_stream",
+            "uploadId": upload_id,
+            "stage": stage,
+            "progress": progress,
+            "data": data,
+        }
+        await self.send_to_channel("analysis-stream", message, user_id)
+
+    async def broadcast_attack_simulation(
+        self,
+        event: Dict[str, Any]
+    ):
+        """
+        Broadcast attack simulation events to ALL connected clients.
+        For the live smurfing attack demo.
+        """
+        message = {
+            "type": "attack_simulation",
+            "event": event,
+        }
+        await self.broadcast_to_all(message)
     
     async def broadcast_to_all(self, message: dict):
         """

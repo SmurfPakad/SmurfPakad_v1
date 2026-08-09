@@ -45,6 +45,7 @@ from app.routers import (
     governance_router,
     federated_router,
     watson_nlp_router,
+    attack_router,
 )
 from app.services.ml_service import ml_service
 
@@ -181,6 +182,9 @@ app.include_router(governance_router, prefix=API_V1_PREFIX)
 
 # Federated Learning (cross-bank privacy-preserving training)
 app.include_router(federated_router, prefix=API_V1_PREFIX)
+
+# Attack Simulation (live smurfing demos)
+app.include_router(attack_router, prefix=API_V1_PREFIX)
 
 # IBM Watson NLP (transaction narration analysis)
 app.include_router(watson_nlp_router, prefix=API_V1_PREFIX)

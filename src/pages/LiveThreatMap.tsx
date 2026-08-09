@@ -21,8 +21,13 @@ import {
   Radio,
   TrendingUp,
   Eye,
+  Target,
+  Play,
+  Zap as ZapIcon,
 } from "lucide-react";
 import { safeguardApi, type SafeguardAlert } from "@/lib/api";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import SmurfingAttackDemo from "@/components/SmurfingAttackDemo";
 
 // ============================================================================
 // Animated Counter Component
@@ -341,6 +346,7 @@ export default function LiveThreatMap() {
     flagRate: 0,
   });
   const [wsConnected, setWsConnected] = useState(false);
+  const [attackDemoOpen, setAttackDemoOpen] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   // Fetch initial stats
@@ -433,12 +439,20 @@ export default function LiveThreatMap() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-              <PulseDot color={wsConnected ? "green" : "red"} />
-              <span className="text-xs text-gray-400">
-                {wsConnected ? "LIVE" : "DISCONNECTED"}
-              </span>
-            </div>
+            <Dialog open={attackDemoOpen} onOpenChange={setAttackDemoOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 flex items-center gap-2"
+                >
+                  <ZapIcon className="w-4 h-4" />
+                  Simulate Attack
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-6xl max-h-[90vh] p-0 overflow-hidden">
+                <SmurfingAttackDemo />
+              </DialogContent>
+            </Dialog>
             <Link to="/cryptoflow/warroom">
               <Button
                 variant="outline"
