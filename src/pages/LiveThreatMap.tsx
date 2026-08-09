@@ -172,10 +172,12 @@ function AlertItem({ alert, index }: { alert: SafeguardAlert; index: number }) {
           <Button 
             size="sm" 
             variant="ghost" 
-            className="h-7 text-xs border border-purple-500/30 text-purple-400 hover:bg-purple-500/10 px-2"
-            onClick={() => navigate(`/cryptoflow/warroom?walletId=${encodeURIComponent(alert.recipient || '')}`)}
+            className="h-7 text-xs border border-red-500/40 text-red-400 hover:bg-red-500/10 px-2 font-semibold"
+            onClick={() => navigate(
+              `/cryptoflow/warroom?walletId=${encodeURIComponent(alert.recipient || '')}&riskScore=${alert.riskScore.toFixed(2)}&platform=${encodeURIComponent(alert.platform || 'unknown')}`
+            )}
           >
-            Investigate
+            🔍 Investigate
             <ChevronRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
