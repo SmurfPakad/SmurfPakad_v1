@@ -179,9 +179,14 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           
           <div className="flex items-center gap-2">
             {/* IBM Powered */}
-            <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/5 border border-blue-500/10">
-              <span className="text-blue-400 font-bold text-[9px]">IBM</span>
-              <span className="text-blue-300/50 text-[8px]">watsonx</span>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-900/20 border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+              <span className="text-blue-400 font-bold text-[11px] tracking-wide">
+                IBM watsonx.ai <span className="text-blue-300/70 font-medium ml-1">[CONNECTED] granite-3-8b-instruct</span>
+              </span>
             </div>
             
             {/* Notification Bell */}

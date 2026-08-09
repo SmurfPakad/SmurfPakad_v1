@@ -7,6 +7,7 @@ import { useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Text, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 interface BarData {
   label: string;
@@ -135,17 +136,19 @@ export default function AnalyticsChart3D({ bars = DEFAULT_BARS, height = "320px"
           {title}
         </div>
       )}
-      <Canvas camera={{ position: [0, 3.5, 7], fov: 50 }}>
-        <ambientLight intensity={0.3} />
-        <pointLight position={[0, 8, 3]} intensity={1.5} color="white" />
-        <pointLight position={[-4, 2, 4]} intensity={0.8} color="#4f9cf9" />
-        <pointLight position={[4, 2, 4]} intensity={0.8} color="#8b5cf6" />
-        <fog attach="fog" args={["#050510", 10, 25]} />
-        <GridFloor />
-        {bars.map((bar, i) => (
-          <AnimatedBar key={i} bar={bar} index={i} maxValue={maxValue} />
-        ))}
-      </Canvas>
+      <ErrorBoundary fallback={<div className="flex h-full w-full items-center justify-center text-gray-500 bg-gray-900/20 rounded-xl border border-gray-800">3D Analytics Unavailable (WebGL not supported)</div>}>
+        <Canvas camera={{ position: [0, 3.5, 7], fov: 50 }} gl={{ powerPreference: 'low-power', antialias: false }}>
+          <ambientLight intensity={0.3} />
+          <pointLight position={[0, 8, 3]} intensity={1.5} color="white" />
+          <pointLight position={[-4, 2, 4]} intensity={0.8} color="#4f9cf9" />
+          <pointLight position={[4, 2, 4]} intensity={0.8} color="#8b5cf6" />
+          <fog attach="fog" args={["#050510", 10, 25]} />
+          <GridFloor />
+          {bars.map((bar, i) => (
+            <AnimatedBar key={i} bar={bar} index={i} maxValue={maxValue} />
+          ))}
+        </Canvas>
+      </ErrorBoundary>
     </div>
   );
 }

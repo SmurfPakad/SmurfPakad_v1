@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Shield,
   ShieldAlert,
@@ -94,6 +94,7 @@ function PulseDot({ color = "green" }: { color?: string }) {
 // Alert Feed Item
 // ============================================================================
 function AlertItem({ alert, index }: { alert: SafeguardAlert; index: number }) {
+  const navigate = useNavigate();
   const riskColors: Record<string, string> = {
     critical: "border-red-500/50 bg-red-500/10",
     high: "border-orange-500/50 bg-orange-500/10",
@@ -138,19 +139,19 @@ function AlertItem({ alert, index }: { alert: SafeguardAlert; index: number }) {
               {platformIcons[alert.platform] || platformIcons.unknown}
             </span>
             <span className="font-semibold text-white truncate text-sm">
-              {alert.recipient.length > 24
+              {alert.recipient && alert.recipient.length > 24
                 ? alert.recipient.slice(0, 24) + "..."
-                : alert.recipient}
+                : alert.recipient || "Unknown Recipient"}
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <span className="font-mono font-bold text-white">
-              ₹{alert.amount.toLocaleString()}
+              ₹{(alert.amount || 0).toLocaleString()}
             </span>
-            <span className="capitalize">{alert.platform}</span>
+            <span className="capitalize">{alert.platform || 'unknown'}</span>
             <span>{timeDiff()}</span>
           </div>
-          {alert.reasons.length > 0 && (
+          {alert.reasons && alert.reasons.length > 0 && (
             <p className="text-xs text-gray-400 mt-1.5 line-clamp-1">
               {alert.reasons[0]}
             </p>
@@ -165,9 +166,18 @@ function AlertItem({ alert, index }: { alert: SafeguardAlert; index: number }) {
           >
             {alert.riskLevel}
           </Badge>
-          <span className="text-xs font-mono text-gray-500">
+          <span className="text-xs font-mono text-gray-500 mb-1">
             {(alert.riskScore * 100).toFixed(0)}%
           </span>
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            className="h-7 text-xs border border-purple-500/30 text-purple-400 hover:bg-purple-500/10 px-2"
+            onClick={() => navigate(`/cryptoflow/warroom?walletId=${encodeURIComponent(alert.recipient || '')}`)}
+          >
+            Investigate
+            <ChevronRight className="w-3 h-3 ml-1" />
+          </Button>
         </div>
       </div>
     </div>
@@ -389,15 +399,20 @@ export default function LiveThreatMap() {
         } catch { /* ignore */ }
       };
       ws.onclose = () => setWsConnected(false);
-      ws.onerror = () => setWsConnected(false);
+      ws.onerror = () => {
+        setWsConnected(false);
+        // Fallback to demo mode if connection fails
+        startDemoMode();
+      };
       wsRef.current = ws;
       return () => { ws.close(); };
     }
 
     // ── Demo mode — simulate live alerts without backend auth ────────────
-    setWsConnected(true); // show LIVE in demo
+    const startDemoMode = () => {
+      setWsConnected(true); // show LIVE in demo
 
-    const MOCK_ALERTS: SafeguardAlert[] = [
+      const MOCK_ALERTS: SafeguardAlert[] = [
       { id: "a1",  severity: "critical", riskLevel: "critical", walletId: "mule_004@paytm",           message: "Critical: Smurfing cluster detected — ₹9,800 x14 to collector_001",    timestamp: new Date().toISOString() },
       { id: "a2",  severity: "high",     riskLevel: "high",     walletId: "wallet_0175@crypto_btc",    message: "High: Rapid fan-out to 4 wallets within 90 seconds",                   timestamp: new Date(Date.now()-20000).toISOString() },
       { id: "a3",  severity: "high",     riskLevel: "high",     walletId: "mule_006@paytm",            message: "High: Cross-platform transfer UPI→ETH detected (layering indicator)",  timestamp: new Date(Date.now()-55000).toISOString() },
@@ -434,6 +449,11 @@ export default function LiveThreatMap() {
     }, 8000);
 
     return () => { clearInterval(liveInterval); };
+  };
+
+  if (!localStorage.getItem("auth_token")) {
+    return startDemoMode();
+  }
   }, []);
 
   const criticalCount = alerts.filter(

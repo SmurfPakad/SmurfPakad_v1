@@ -11,6 +11,7 @@ import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
+import { ErrorBoundary } from './ErrorBoundary';
 import { ZoomIn, ZoomOut, Maximize2, Info, Search, Download, TrendingUp, Route, Camera, Play, Pause, Box, AlertTriangle, Network, BarChart3, Bookmark, Layers, GitBranch, X } from 'lucide-react';
 import { toast } from './ToastNotification';
 
@@ -148,8 +149,18 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     }
   });
   
-  // Use provided data or stable demo data reference
-  const graphData = data || demoDataRef.current;
+  // Use provided data or stable demo data reference, normalizing field names
+  const graphData = useMemo(() => {
+    const source = data || demoDataRef.current;
+    return {
+      ...source,
+      nodes: source.nodes.map(n => ({
+        ...n,
+        risk_level: ((n as any).risk_level || (n as any).riskLevel || 'low').toLowerCase(),
+        suspicious_score: (n as any).suspicious_score || (n as any).suspiciousScore || (n as any).risk || 0,
+      }))
+    };
+  }, [data]);
   
   // State
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
@@ -519,7 +530,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     const lowFanIn = inDegree <= 2;
     const lowFanOut = outDegree <= 2;
     
-    if (node.risk_level === 'high' || riskScore >= 0.65) {
+    if (node.risk_level === 'high' || node.risk_level === 'critical') {
       if (highFanIn && highFanOut) {
         reasons.push("⚠️ High fan-in AND fan-out activity detected");
         reasons.push("🔴 Potential smurfing/layering pattern");
@@ -538,7 +549,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
         reasons,
         verdict: "This node exhibits patterns consistent with money laundering activities."
       };
-    } else if (node.risk_level === 'medium' || riskScore >= 0.35) {
+    } else if (node.risk_level === 'medium') {
       if (highFanIn || highFanOut) {
         reasons.push("⚡ Elevated transaction activity detected");
       }
@@ -1163,7 +1174,9 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
 
         <div ref={containerRef} className="relative bg-white dark:bg-[#0a0118] rounded-lg overflow-hidden" style={{ width: '100%', height: '600px' }}>
           {is3D ? (
-            <ForceGraph3D ref={graphRef} {...graph3DProps} />
+            <ErrorBoundary fallback={<div className="flex h-full w-full items-center justify-center text-gray-500 bg-gray-900/20 rounded-xl border border-gray-800">3D Network Unavailable (WebGL not supported)</div>}>
+              <ForceGraph3D ref={graphRef} {...graph3DProps} />
+            </ErrorBoundary>
           ) : (
             <ForceGraph2D ref={graphRef} {...graph2DProps} />
           )}
