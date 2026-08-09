@@ -6,6 +6,8 @@ venv/
 env/
 .venv/
 ENV/
+env.bak/
+venv.bak/
 
 # Python
 __pycache__/
@@ -29,25 +31,27 @@ wheels/
 .installed.cfg
 *.egg
 
-# Dataset (large files)
-Backend/dataset/
-*.csv
+# PyTorch / Model Checkpoints
 *.pt
 *.pth
+*.ckpt
+*.bin
+All_models/
 *.pkl
-*.h5
-*.hdf5
+scaler_params.pkl
 
-# ML artifacts
-*.model
-*.onnx
-wandb/
-mlruns/
-lightning_logs/
+# Data
+data/*.pt
+data/*.csv
+data/*.npz
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
 *~
@@ -56,6 +60,38 @@ lightning_logs/
 .DS_Store
 Thumbs.db
 
+# Logs
+*.log
+logs/
+
+# Coverage / Test
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Distribution / Packaging
+*.tar.gz
+*.whl
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# ML artifacts
+*.model
+*.onnx
+wandb/
+mlruns/
+lightning_logs/
+
+# Dataset (large files)
+Backend/dataset/
+*.csv
+*.h5
+*.hdf5
+
 # Node (Frontend)
 node_modules/
 npm-debug.log*
@@ -63,20 +99,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs
-*.log
-*.tmp
 *.temp
 .cache/
-
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
-# Coverage
-htmlcov/
-.coverage
-.coverage.*
-.pytest_cache/
 
 # ML generated visualizations
 AI/ML/*.png
