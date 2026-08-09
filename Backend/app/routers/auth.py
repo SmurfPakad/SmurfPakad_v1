@@ -23,8 +23,8 @@ async def google_oauth_redirect():
     Redirect to Google OAuth authorization URL
     """
     client_id = settings.GOOGLE_CLIENT_ID
-    # Redirect back to frontend callback page which will handle the code
-    redirect_uri = f"{settings.FRONTEND_URL}/cryptoflow/auth/callback"
+    # Redirect back to frontend - using exactly what's registered in Google Console
+    redirect_uri = f"{settings.FRONTEND_URL}"
     
     if not client_id or client_id == "your-google-client-id":
         # Return a mock URL for development
