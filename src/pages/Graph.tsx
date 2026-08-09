@@ -1,14 +1,17 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Network, Upload as UploadIcon, RefreshCw, Loader2, AlertTriangle, Download } from "lucide-react";
+import { Network, Upload as UploadIcon, RefreshCw, Loader2, AlertTriangle, Download, Boxes } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import UltraGraphVisualization from "@/components/UltraGraphVisualization";
+import NetworkGraph3D from "@/components/NetworkGraph3D";
 import { graphApi, uploadApi, type GraphData } from "@/lib/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { toast } from "@/components/ToastNotification";
+import { usePageEntrance } from "@/hooks/useGSAP";
+
 
 export default function Graph() {
   const [searchParams] = useSearchParams();
@@ -274,13 +277,47 @@ export default function Graph() {
           </Card>
         )}
 
-        {/* Interactive Graph Visualization */}
+        {/* Interactive Graph Visualization — 2D / 3D Toggle */}
         {!isLoading && (
-          <ErrorBoundary>
-            <UltraGraphVisualization data={graphData || undefined} />
-          </ErrorBoundary>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <button
+                id="toggle-2d"
+                onClick={() => {
+                  document.getElementById('view-2d')!.style.display = 'block';
+                  document.getElementById('view-3d')!.style.display = 'none';
+                  document.getElementById('toggle-2d')!.className = 'px-3 py-1.5 text-xs rounded-lg bg-crypto-purple text-white font-semibold';
+                  document.getElementById('toggle-3d')!.className = 'px-3 py-1.5 text-xs rounded-lg bg-white/5 text-gray-400 border border-white/10';
+                }}
+                className="px-3 py-1.5 text-xs rounded-lg bg-crypto-purple text-white font-semibold"
+              >
+                <Network className="h-3 w-3 inline mr-1" /> 2D Force Graph
+              </button>
+              <button
+                id="toggle-3d"
+                onClick={() => {
+                  document.getElementById('view-2d')!.style.display = 'none';
+                  document.getElementById('view-3d')!.style.display = 'block';
+                  document.getElementById('toggle-3d')!.className = 'px-3 py-1.5 text-xs rounded-lg bg-crypto-purple text-white font-semibold';
+                  document.getElementById('toggle-2d')!.className = 'px-3 py-1.5 text-xs rounded-lg bg-white/5 text-gray-400 border border-white/10';
+                }}
+                className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-gray-400 border border-white/10"
+              >
+                <Boxes className="h-3 w-3 inline mr-1" /> 3D Network
+              </button>
+            </div>
+            <div id="view-2d">
+              <ErrorBoundary>
+                <UltraGraphVisualization data={graphData || undefined} />
+              </ErrorBoundary>
+            </div>
+            <div id="view-3d" style={{ display: 'none' }} className="rounded-xl overflow-hidden border border-white/10">
+              <NetworkGraph3D height="520px" />
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>
   );
 }
+
