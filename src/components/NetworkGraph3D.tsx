@@ -7,6 +7,7 @@ import { useRef, useMemo, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Line, Sphere } from "@react-three/drei";
 import * as THREE from "three";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 interface Node3D {
   id: string;
@@ -168,9 +169,11 @@ export default function NetworkGraph3D({ nodes, edges, height = "400px" }: Props
 
   return (
     <div style={{ width: "100%", height, borderRadius: "12px", overflow: "hidden" }}>
-      <Canvas camera={{ position: [4, 3, 5], fov: 55 }}>
-        <Scene nodes={demoNodes} edges={demoEdges} />
-      </Canvas>
+      <ErrorBoundary fallback={<div className="flex h-full w-full items-center justify-center text-gray-500 bg-gray-900/20 rounded-xl border border-gray-800">3D Graph Unavailable (WebGL not supported)</div>}>
+        <Canvas camera={{ position: [4, 3, 5], fov: 55 }} gl={{ powerPreference: 'low-power', antialias: false }}>
+          <Scene nodes={demoNodes} edges={demoEdges} />
+        </Canvas>
+      </ErrorBoundary>
     </div>
   );
 }

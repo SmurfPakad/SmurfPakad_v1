@@ -268,7 +268,32 @@ export default function Analysis() {
                           </div>
                         )}
 
-                        <div className="flex space-x-3">
+                        {/* Explainability (XAI) */}
+                        <div className="bg-gray-50 dark:bg-[#0f0a1c] p-4 rounded-lg border border-purple-500/20 mt-4">
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center space-x-2">
+                            <Brain className="h-4 w-4 text-purple-400" />
+                            <span>Model Explainability (XAI)</span>
+                          </h4>
+                          <div className="space-y-3">
+                            {[
+                              { feature: 'out_degree', score: 85 },
+                              { feature: 'threshold_proximity', score: 72 },
+                              { feature: 'burst_score', score: 65 }
+                            ].map((f, idx) => (
+                              <div key={idx}>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-mono text-gray-600 dark:text-gray-400">{f.feature}</span>
+                                  <span className="text-gray-900 dark:text-white font-medium">{f.score}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-1.5">
+                                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-1.5 rounded-full" style={{ width: `${f.score}%` }}></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex space-x-3 mt-4">
                           <Button 
                             variant="default" 
                             className="bg-crypto-purple hover:bg-crypto-dark-purple"

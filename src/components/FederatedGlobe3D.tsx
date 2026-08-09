@@ -7,6 +7,7 @@ import { useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Sphere, Torus, Text, Float, Line } from "@react-three/drei";
 import * as THREE from "three";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 const BANKS = [
   { name: "Paytm", color: "#00baf2", angle: 0 },
@@ -113,23 +114,25 @@ interface Props {
 export default function FederatedGlobe3D({ height = "380px", isTraining = false }: Props) {
   return (
     <div style={{ width: "100%", height, borderRadius: "12px", overflow: "hidden" }}>
-      <Canvas camera={{ position: [0, 3, 6], fov: 55 }}>
-        <ambientLight intensity={0.2} />
-        <pointLight position={[0, 5, 0]} intensity={2} color="#4f9cf9" />
-        <pointLight position={[0, -3, 0]} intensity={0.5} color="#8b5cf6" />
-        <fog attach="fog" args={["#050510", 8, 20]} />
+      <ErrorBoundary fallback={<div className="flex h-full w-full items-center justify-center text-gray-500 bg-gray-900/20 rounded-xl border border-gray-800">3D Globe Unavailable (WebGL not supported)</div>}>
+        <Canvas camera={{ position: [0, 3, 6], fov: 55 }} gl={{ powerPreference: 'low-power', antialias: false }}>
+          <ambientLight intensity={0.2} />
+          <pointLight position={[0, 5, 0]} intensity={2} color="#4f9cf9" />
+          <pointLight position={[0, -3, 0]} intensity={0.5} color="#8b5cf6" />
+          <fog attach="fog" args={["#050510", 8, 20]} />
 
-        <CentralModel />
-        <OrbitRing />
+          <CentralModel />
+          <OrbitRing />
 
-        {BANKS.map((bank) => (
-          <BankNode key={bank.name} bank={bank} />
-        ))}
+          {BANKS.map((bank) => (
+            <BankNode key={bank.name} bank={bank} />
+          ))}
 
-        {isTraining && BANKS.map((bank) => (
-          <DataPacket key={bank.name} bank={bank} speed={0.6 + Math.random() * 0.3} />
-        ))}
-      </Canvas>
+          {isTraining && BANKS.map((bank) => (
+            <DataPacket key={bank.name} bank={bank} speed={0.6 + Math.random() * 0.3} />
+          ))}
+        </Canvas>
+      </ErrorBoundary>
     </div>
   );
 }

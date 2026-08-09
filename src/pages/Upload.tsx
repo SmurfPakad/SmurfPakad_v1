@@ -8,8 +8,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { uploadApi, type Upload as UploadType } from "@/lib/api";
-
 export default function Upload() {
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -20,7 +20,6 @@ export default function Upload() {
   const [columnMapping, setColumnMapping] = useState<any>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
 
   const expectedColumns = [
     { name: "Source_Wallet_ID", required: true },
@@ -125,6 +124,11 @@ export default function Upload() {
       setProgress(100);
       setUploadResult(result);
       setUploadComplete(true);
+      
+      // Navigate to Analysis page to show the "synced" results
+      setTimeout(() => {
+        navigate(`/cryptoflow/analysis?uploadId=${result.id}`);
+      }, 800);
     } catch (error: any) {
       clearInterval(progressInterval);
       setProgress(0);
