@@ -8,6 +8,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import ThreeBackground from "@/components/ThreeBackground";
 import CrossPlatformGraph from "@/components/CrossPlatformGraph";
 import FloatingRiskOrbs3D from "@/components/FloatingRiskOrbs3D";
+import LiveAlertBanner from "@/components/LiveAlertBanner";
 import { dashboardApi, uploadApi, type Upload } from "@/lib/api";
 import { usePageEntrance, useStaggerCards, useCountUp } from "@/hooks/useGSAP";
 
@@ -113,6 +114,9 @@ export default function Dashboard() {
     <DashboardLayout>
       <ThreeBackground variant="cubes" />
       <div className="space-y-8 dashboard-content">
+        {/* Live WebSocket Alert Banner */}
+        <LiveAlertBanner />
+
         {/* Welcome + 3D Risk Visualization */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
           <div className="rounded-xl p-6 border bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 dark:from-crypto-purple/20 dark:to-pink-600/20 dark:border-crypto-purple/30">
