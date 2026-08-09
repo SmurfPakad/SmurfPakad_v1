@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Loader2, Lock, Server, Database, ArrowRight, CheckCircle2, Shield, Zap } from 'lucide-react';
+import { Play, Loader2, Lock, Server, Database, ArrowRight, CheckCircle2, Shield, Zap, ChevronLeft } from 'lucide-react';
 import FederatedGlobe3D from '@/components/FederatedGlobe3D';
 import { usePageEntrance } from '@/hooks/useGSAP';
 
@@ -61,6 +61,9 @@ export default function FederatedDemo() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-3">
+                <button onClick={() => window.history.back()} className="text-gray-400 hover:text-white transition-colors">
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
                 <Server className="w-7 h-7 text-purple-400" />
                 Federated Learning Demo
               </h1>
