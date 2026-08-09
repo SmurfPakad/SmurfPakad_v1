@@ -262,10 +262,6 @@ export default function AgentChat() {
           : m
       ));
       setIsLoading(false);
-    } finally {
-      // Double-ensure loading is reset
-      setIsLoading(false);
-    }
   };
 
   const quickActions = [
@@ -382,4 +378,5 @@ export default function AgentChat() {
       </div>
     </div>
   );
+}
 }

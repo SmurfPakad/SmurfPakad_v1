@@ -377,12 +377,8 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
       return communityColors[node.community as keyof typeof communityColors] || '#999';
     }
     
-    // Normalize both snake_case and camelCase field names
-    const level = node.risk_level || node.riskLevel || 
-      (node.suspicious_score > 0.8 ? 'high' : node.suspicious_score > 0.5 ? 'medium' : 'low');
-    
-    if (level === 'critical' || level === 'high') return '#ef4444';
-    if (level === 'medium') return '#f59e0b';
+    if (node.risk_level === 'high') return '#ef4444';
+    if (node.risk_level === 'medium') return '#f59e0b';
     return '#10b981';
   }, [centralityMode, showCommunities, tracingAllPaths]);
 

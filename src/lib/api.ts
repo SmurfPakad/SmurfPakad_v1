@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+=======
+>>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
 /**
  * SmurfPakad API Client
  * =====================
@@ -195,6 +198,7 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
+<<<<<<< HEAD
 export const api = {
   get: <T>(endpoint: string, options: RequestInit = {}) => 
     fetch(`${API_V1}${endpoint}`, { ...options, headers: getAuthHeaders(), method: 'GET' }).then(r => r.ok ? r.json() : Promise.reject(r)),
@@ -206,6 +210,8 @@ export const api = {
     fetch(`${API_V1}${endpoint}`, { ...options, headers: getAuthHeaders(), method: 'DELETE' }).then(r => r.ok ? r.json() : Promise.reject(r)),
 };
 
+=======
+>>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
 async function tryFetch<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 4000): Promise<T | null> {
   try {
     const controller = new AbortController();
@@ -330,6 +336,7 @@ const MOCK_ADDRESSES: SuspiciousAddress[] = [
   { address: 'wallet_0175@crypto_btc',   riskScore: 0.81, riskLevel: 'high',     transactionCount: 8,  totalAmount: 78500.00,   flags: ['Layering Source'] },
 ];
 
+<<<<<<< HEAD
 // Generate deterministic mock data seeded by uploadId for variation
 function hashString(str: string): number {
   let hash = 0;
@@ -411,6 +418,8 @@ function generateSeededMockData(uploadId: string) {
   return { patterns, addresses: mockAddresses };
 }
 
+=======
+>>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
 export const analysisApi = {
   run: async (uploadId: string) => {
     const real = await tryFetch<any>(`/analysis/${uploadId}/run`, { method: 'POST' });
@@ -420,8 +429,11 @@ export const analysisApi = {
     if (uploadId) {
       const real = await tryFetch<{ patterns: Pattern[] } | Pattern[]>(`/analysis/${uploadId}/patterns`);
       if (real) return Array.isArray(real) ? real : (real as any).patterns || [];
+<<<<<<< HEAD
       // Return seeded mock data for this uploadId
       return generateSeededMockData(uploadId).patterns;
+=======
+>>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
     }
     return MOCK_PATTERNS;
   },
@@ -429,8 +441,11 @@ export const analysisApi = {
     if (uploadId) {
       const real = await tryFetch<{ addresses: SuspiciousAddress[] }>(`/analysis/${uploadId}/suspicious`);
       if (real) return real;
+<<<<<<< HEAD
       // Return seeded mock data for this uploadId
       return { addresses: generateSeededMockData(uploadId).addresses };
+=======
+>>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
     }
     return { addresses: MOCK_ADDRESSES };
   },
@@ -743,6 +758,7 @@ export function createWebSocketConnection(
   ws.onerror = (e) => onError?.(e);
   return ws;
 }
+<<<<<<< HEAD
 
 export type WSMessage = 
   | { type: 'upload_progress'; uploadId: string; progress: number; status: string; message?: string }
@@ -789,3 +805,5 @@ export function useWebSocket(onMessage?: (msg: WSMessage) => void) {
 
   return { connected, lastMessage };
 }
+=======
+>>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9

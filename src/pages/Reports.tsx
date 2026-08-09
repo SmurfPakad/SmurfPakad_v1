@@ -75,7 +75,7 @@ export default function Reports() {
     }
   };
 
-  const handleDownloadReport = async (reportId: string, reportFormat?: string, filename?: string) => {
+const handleDownloadReport = async (reportId: string, reportFormat?: string, filename?: string) => {
     try {
       const blob = await reportsApi.downloadReport(reportId);
       const url = window.URL.createObjectURL(blob);

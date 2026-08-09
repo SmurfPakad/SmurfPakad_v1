@@ -190,7 +190,7 @@ class ConnectionManager:
             "event": event,
         }
         await self.broadcast_to_all(message)
-    
+
     async def broadcast_to_all(self, message: dict):
         """
         Broadcast a message to ALL connected WebSocket clients.

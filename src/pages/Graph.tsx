@@ -54,14 +54,14 @@ export default function Graph() {
     fetchUploads();
   }, [uploadIdParam]);
 
-  // Auto-fetch graph data when uploadId is in URL
+// Auto-fetch graph data when uploadId is in URL
+  const hasAutoFetched = useRef(false);
   useEffect(() => {
-    if (uploadIdParam && selectedUploadId === uploadIdParam) {
+    if (uploadIdParam && selectedUploadId === uploadIdParam && !hasAutoFetched.current) {
+      hasAutoFetched.current = true;
       fetchGraphData();
     }
   }, [uploadIdParam, selectedUploadId, fetchGraphData]);
-
-  // Fetch graph data - only when explicitly triggered by button click
   const fetchGraphData = useCallback(async () => {
     if (!selectedUploadId) {
       setError('Please select an upload first');
@@ -83,15 +83,6 @@ export default function Graph() {
       setIsLoading(false);
     }
   }, [selectedUploadId, topK, hop]);
-
-  // Auto-fetch graph data if selectedUploadId is set from URL param
-  const hasAutoFetched = useRef(false);
-  useEffect(() => {
-    if (selectedUploadId && !hasAutoFetched.current) {
-      hasAutoFetched.current = true;
-      fetchGraphData();
-    }
-  }, [selectedUploadId, fetchGraphData]);
 
   // Handle local file upload (fallback)
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {

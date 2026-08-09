@@ -66,7 +66,8 @@ export default function Settings() {
     const fetchApiKeys = async () => {
       try {
         const keys = await settingsApi.getApiKeys();
-        setApiKeys(keys || []);
+        const normalizedKeys = Array.isArray(keys) ? keys : keys?.keys || [];
+        setApiKeys(normalizedKeys);
       } catch (err) {
         console.error('Failed to fetch API keys:', err);
       }
@@ -95,7 +96,7 @@ export default function Settings() {
   const handleSaveNotifications = async () => {
     setIsSaving(true);
     try {
-      await settingsApi.updateNotifications(notifications);
+      await settingsApi.updateSettings(notifications);
       toast.success("Notification preferences saved!");
     } catch (err) {
       console.error('Failed to save notifications:', err);
@@ -103,12 +104,12 @@ export default function Settings() {
     } finally {
       setIsSaving(false);
     }
-};
-  
+  };
+
   const handleUpdatePassword = async () => {
     setIsSaving(true);
     try {
-      await settingsApi.updatePassword({
+      await settingsApi.updateSettings({
         // In a real app, you'd get these from form state
       });
       toast.success("Password updated successfully!");
@@ -133,7 +134,7 @@ export default function Settings() {
     try {
       const result = await settingsApi.createApiKey(newKeyName);
       setApiKeys([...apiKeys, { 
-        id: result.id, 
+        id: result.key, 
         name: newKeyName, 
         key: result.key,
         created_at: new Date().toISOString()
@@ -141,6 +142,7 @@ export default function Settings() {
       setNewKeyName('');
     } catch (err) {
       console.error('Failed to create API key:', err);
+      toast.error("Failed to create API key. Please try again.");
     } finally {
       setIsCreatingKey(false);
     }
@@ -148,10 +150,11 @@ export default function Settings() {
 
   const handleDeleteApiKey = async (keyId: string) => {
     try {
-      await settingsApi.deleteApiKey(keyId);
+      await settingsApi.revokeApiKey(keyId);
       setApiKeys(apiKeys.filter(k => k.id !== keyId));
     } catch (err) {
       console.error('Failed to delete API key:', err);
+      toast.error("Failed to delete API key. Please try again.");
     }
   };
   return (
@@ -470,84 +473,84 @@ export default function Settings() {
                       </Button>
                     </div>
                   </div>
+                </div>
 
-                  <Separator />
+                <Separator />
 
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium">Your API Keys</h4>
-                      <div className="flex space-x-2">
-                        <Input 
-                          placeholder="Key name..."
-                          value={newKeyName}
-                          onChange={(e) => setNewKeyName(e.target.value)}
-                          className="w-40"
-                        />
-                        <Button 
-                          variant="outline"
-                          onClick={handleCreateApiKey}
-                          disabled={isCreatingKey || !newKeyName.trim()}
-                        >
-                          {isCreatingKey ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Plus className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium">Your API Keys</h4>
+                    <div className="flex space-x-2">
+                      <Input 
+                        placeholder="Key name..."
+                        value={newKeyName}
+                        onChange={(e) => setNewKeyName(e.target.value)}
+                        className="w-40"
+                      />
+                      <Button 
+                        variant="outline"
+                        onClick={handleCreateApiKey}
+                        disabled={isCreatingKey || !newKeyName.trim()}
+                      >
+                        {isCreatingKey ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
-                    
-                    {apiKeys.length === 0 ? (
-                      <p className="text-sm text-gray-500 text-center py-4">
-                        No API keys yet. Create one to get started.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {apiKeys.map((apiKey) => (
-                          <div key={apiKey.id} className="flex items-center space-x-2 p-3 border rounded-lg">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">{apiKey.name}</p>
-                              <p className="text-xs text-gray-500 font-mono">
-                                {apiKey.key.substring(0, 20)}...
-                              </p>
-                            </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleCopyKey(apiKey.key)}
-                            >
-                              {copiedKey === apiKey.key ? (
-                                <Check className="h-4 w-4" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleDeleteApiKey(apiKey.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
+                  
+                  {apiKeys.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No API keys yet. Create one to get started.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {apiKeys.map((apiKey) => (
+                        <div key={apiKey.id} className="flex items-center space-x-2 p-3 border rounded-lg">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{apiKey.name}</p>
+                            <p className="text-xs text-gray-500 font-mono">
+                              {apiKey.key.substring(0, 20)}...
+                            </p>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleCopyKey(apiKey.key)}
+                          >
+                            {copiedKey === apiKey.key ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteApiKey(apiKey.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                  <Separator />
+                <Separator />
 
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium">Rate Limits</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 border rounded-lg">
-                        <p className="text-sm text-gray-600">Requests per minute</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">100</p>
-                      </div>
-                      <div className="p-4 border rounded-lg">
-                        <p className="text-sm text-gray-600">Daily limit</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">10,000</p>
-                      </div>
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Rate Limits</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 border rounded-lg">
+                      <p className="text-sm text-gray-600">Requests per minute</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">100</p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <p className="text-sm text-gray-600">Daily limit</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">10,000</p>
                     </div>
                   </div>
                 </div>

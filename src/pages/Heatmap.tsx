@@ -421,12 +421,25 @@ export default function Heatmap() {
                     {/* Legend */}
                     <div className="flex items-center justify-center gap-6 mt-6">
                       <div className="flex items-center gap-2">
+<<<<<<< HEAD
                         <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(16, 185, 129, 0.5)' }} />
                         <span className="text-sm text-gray-600 dark:text-gray-400">Low Risk</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(245, 158, 11, 0.6)' }} />
                         <span className="text-sm text-gray-600 dark:text-gray-400">High Risk</span>
+=======
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(34, 197, 94, 0.5)' }} />
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Low Risk</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(234, 179, 8, 0.6)' }} />
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Medium</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(245, 158, 11, 0.8)' }} />
+                        <span className="text-sm text-gray-600 dark:text-gray-400">High</span>
+>>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(239, 68, 68, 0.9)' }} />
