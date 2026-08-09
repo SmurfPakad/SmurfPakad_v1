@@ -17,6 +17,7 @@ import {
   Globe,
   AlertTriangle,
   ChevronRight,
+  ChevronLeft,
   Radio,
   TrendingUp,
   Eye,
@@ -413,6 +414,9 @@ export default function LiveThreatMap() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <button onClick={() => window.history.back()} className="text-gray-400 hover:text-white transition-colors">
+                <ChevronLeft className="w-8 h-8" />
+              </button>
               <Globe className="h-8 w-8 text-purple-400" />
               Live Threat Map
             </h1>

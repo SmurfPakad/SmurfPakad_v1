@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload as UploadIcon, FileText, AlertCircle, CheckCircle2, X, Table, AlertTriangle, Loader2 } from "lucide-react";
+import { Upload as UploadIcon, FileText, AlertCircle, CheckCircle2, X, Table, AlertTriangle, Loader2, Download, ChevronLeft } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
@@ -153,10 +153,56 @@ export default function Upload() {
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">Upload Transaction Data</h2>
-          <p className="text-gray-600 mt-1">Upload blockchain transaction data for Smurfing pattern analysis</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => window.history.back()} className="text-gray-400 hover:text-white transition-colors">
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <div>
+              <h2 className="text-3xl font-bold text-white">Upload Transaction Data</h2>
+              <p className="text-gray-400 mt-1">Upload blockchain / UPI transaction data for Smurfing pattern analysis</p>
+            </div>
+          </div>
         </div>
+
+        {/* Sample Data Download */}
+        <Card className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-white flex items-center gap-2 text-base">
+              <Download className="h-5 w-5 text-blue-400" />
+              Download Sample Data
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Use these demo files to test the upload and analysis pipeline with realistic mock data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/cryptoflow/demo_data/upi_transactions_demo.csv"
+                download="upi_transactions_demo.csv"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30 transition-colors text-sm font-medium"
+              >
+                <FileText className="h-4 w-4" />
+                upi_transactions_demo.csv
+                <span className="text-xs text-blue-400/60 ml-1">(UPI / Wallet format • 608 rows)</span>
+              </a>
+              <a
+                href="/cryptoflow/demo_data/elliptic_style_demo.csv"
+                download="elliptic_style_demo.csv"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 transition-colors text-sm font-medium"
+              >
+                <FileText className="h-4 w-4" />
+                elliptic_style_demo.csv
+                <span className="text-xs text-purple-400/60 ml-1">(43-feature graph format • 500 nodes)</span>
+              </a>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              <strong className="text-gray-400">UPI format:</strong> Source_Wallet_ID, Dest_Wallet_ID, Timestamp, Amount, Token_Type — used for wallet-graph analysis.
+              &nbsp; <strong className="text-gray-400">Elliptic format:</strong> txId + 43 numerical features + label — maps directly to best_model_tg.pt.
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Upload card */}
         <Card>

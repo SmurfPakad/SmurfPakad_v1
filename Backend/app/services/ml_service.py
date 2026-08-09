@@ -174,6 +174,51 @@ class SmurfHunterGNNModel(torch.nn.Module):
         return self._attention_weights
 
 
+class BestModelTG(torch.nn.Module):
+    """
+    Architecture matching best_model_tg.pt (trained on 43-feature Elliptic subset).
+    Keys: conv1/conv2/conv3 (GATv2Conv), bn1/bn2/bn3 (BatchNorm1d), classifier (Linear)
+    Shape confirmed: lin_l=[64,43], heads=4, head_dim=16, hidden=64, classifier=[2,128]
+    """
+    def __init__(self, in_channels: int = 43, hidden_channels: int = 64,
+                 out_channels: int = 2, heads: int = 4, dropout: float = 0.3):
+        super().__init__()
+        self.dropout = dropout
+        head_dim = hidden_channels // heads  # 16
+
+        # conv1: in_channels → heads * head_dim = 64
+        self.conv1 = GATv2Conv(in_channels, head_dim, heads=heads,
+                               dropout=dropout, add_self_loops=True, concat=True)
+        self.bn1 = nn.BatchNorm1d(hidden_channels)
+
+        # conv2: 64 → 64
+        self.conv2 = GATv2Conv(hidden_channels, head_dim, heads=heads,
+                               dropout=dropout, add_self_loops=True, concat=True)
+        self.bn2 = nn.BatchNorm1d(hidden_channels)
+
+        # conv3: 64 → 64
+        self.conv3 = GATv2Conv(hidden_channels, head_dim, heads=heads,
+                               dropout=dropout, add_self_loops=True, concat=True)
+        self.bn3 = nn.BatchNorm1d(hidden_channels)
+
+        # Classifier: 128 → 2 (cat of conv2 + conv3 outputs)
+        self.classifier = nn.Linear(hidden_channels * 2, out_channels)
+
+    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        h1 = F.elu(self.bn1(self.conv1(x, edge_index)))
+        h1 = F.dropout(h1, p=self.dropout, training=self.training)
+        h2 = F.elu(self.bn2(self.conv2(h1, edge_index)))
+        h2 = F.dropout(h2, p=self.dropout, training=self.training)
+        h3 = F.elu(self.bn3(self.conv3(h2, edge_index)))
+        out = self.classifier(torch.cat([h2, h3], dim=-1))
+        return out
+
+    def get_embeddings(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        h1 = F.elu(self.bn1(self.conv1(x, edge_index)))
+        h2 = F.elu(self.bn2(self.conv2(h1, edge_index)))
+        return h2
+
+
 class SmurfHunterService:
     """
     Service for running the Smurf Hunter ML model for AML detection
@@ -189,8 +234,8 @@ class SmurfHunterService:
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model_loaded = False
-        # Elliptic dataset has 166 features (columns 1-166 after txId in the CSV)
-        self.expected_features = 166
+        # Will be updated when model is loaded based on actual architecture
+        self.expected_features = 43  # best_model_tg.pt uses 43 features
     
     def load_model(self, model_path: Optional[str] = None):
         """
@@ -206,13 +251,28 @@ class SmurfHunterService:
         
         try:
             if model_path is None:
-                # Try v2 model first, fall back to v1
-                v2_path = str(ML_PATH / "smurf_hunter_model_v2.pt")
-                v1_path = str(ML_PATH / "smurf_hunter_model.pt")
-                model_path = v2_path if os.path.exists(v2_path) else v1_path
+                # Resolve project root (4 levels up from this file: services/app/Backend/project)
+                project_root = Path(__file__).parent.parent.parent.parent
+                models_dir = project_root / "AI" / "All_models"
+                
+                # Priority: best_model_tg.pt → best_model_pyg_gatv2.pt → best_baseline.pt
+                candidates = [
+                    models_dir / "best_model_tg.pt",
+                    models_dir / "best_model_pyg_gatv2.pt",
+                    models_dir / "best_baseline.pt",
+                    # Legacy fallback path
+                    Path(__file__).parent.parent.parent.parent / "AI" / "ML" / "smurf_hunter_model_v2.pt",
+                    Path(__file__).parent.parent.parent.parent / "AI" / "ML" / "smurf_hunter_model.pt",
+                ]
+                model_path = None
+                for c in candidates:
+                    if c.exists():
+                        model_path = str(c)
+                        print(f"Found model at: {model_path}")
+                        break
             
-            if not os.path.exists(model_path):
-                print(f"Warning: Model file not found at {model_path}")
+            if not model_path or not os.path.exists(model_path):
+                print(f"Warning: No model file found. Searched AI/All_models/ and AI/ML/")
                 return False
             
             # Try to load metadata for architecture auto-detection
@@ -233,8 +293,30 @@ class SmurfHunterService:
                 in_channels = meta.get('in_channels', self.expected_features)
                 print(f"Loaded model metadata: type={model_type}, hidden={hidden_channels}")
             
-            # Initialize correct architecture
-            if model_type == 'gatv2':
+            # Load state dict first to auto-detect architecture from weight shapes
+            state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
+            
+            # Auto-detect BestModelTG: has flat conv1/conv2/conv3 + classifier keys
+            has_flat_convs = 'conv1.lin_l.weight' in state_dict and 'classifier.weight' in state_dict
+            has_convs_list = any(k.startswith('convs.') for k in state_dict.keys())
+            
+            if has_flat_convs and not has_convs_list:
+                # BestModelTG architecture (best_model_tg.pt, best_model_pyg_gatv2.pt)
+                # Auto-detect in_channels from weight shape
+                in_channels = state_dict['conv1.lin_l.weight'].shape[1]
+                hidden_channels = state_dict['conv1.lin_l.weight'].shape[0]
+                heads = state_dict['conv1.att'].shape[1]
+                self.expected_features = in_channels
+                self.model = BestModelTG(
+                    in_channels=in_channels,
+                    hidden_channels=hidden_channels,
+                    out_channels=2,
+                    heads=heads,
+                    dropout=0.3,
+                )
+                self._model_type = 'best_model_tg'
+                print(f"Using BestModelTG architecture: in={in_channels}, hidden={hidden_channels}, heads={heads}")
+            elif model_type == 'gatv2' or has_convs_list:
                 self.model = SmurfHunterGNNModel(
                     in_channels=in_channels,
                     hidden_channels=hidden_channels,
@@ -244,6 +326,7 @@ class SmurfHunterService:
                     dropout=0.3,
                 )
                 self.expected_features = in_channels
+                self._model_type = 'gatv2'
                 print(f"Using SmurfHunterGNN (GATv2) architecture")
             else:
                 self.model = GraphSAGEModel(
@@ -252,17 +335,20 @@ class SmurfHunterService:
                     out_channels=2,
                     dropout=0.3,
                 )
+                self._model_type = 'graphsage'
                 print(f"Using legacy GraphSAGE architecture")
             
-            # Load trained weights
-            state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
-            self.model.load_state_dict(state_dict)
+            # Load trained weights (strict=False handles custom GATv2 with temperature param)
+            missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
+            if missing:
+                print(f"Missing keys (will use defaults): {missing}")
+            if unexpected:
+                print(f"Ignoring extra keys from custom trainer: {unexpected}")
             self.model.to(self.device)
             self.model.eval()
             self.model_loaded = True
-            self._model_type = model_type
             
-            print(f"✓ Smurf Hunter model loaded successfully on {self.device}")
+            print(f"[OK] Smurf Hunter model loaded successfully on {self.device}")
             return True
             
         except Exception as e:

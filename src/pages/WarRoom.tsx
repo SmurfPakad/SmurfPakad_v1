@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Activity,
   ChevronRight,
+  ChevronLeft,
   Loader2,
   Crosshair,
   Network,
@@ -465,6 +466,9 @@ export default function WarRoom() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+              <button onClick={() => window.history.back()} className="text-gray-400 hover:text-white transition-colors">
+                <ChevronLeft className="w-6 h-6" />
+              </button>
               <Crosshair className="h-7 w-7 text-red-400" />
               War Room
             </h1>
