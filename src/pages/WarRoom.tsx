@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   Card,
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useSearchParams } from "react-router-dom";
 import {
   Eye,
   Brain,
@@ -401,56 +402,96 @@ function InvestigationGraph({
 // Main War Room Page
 // ============================================================================
 export default function WarRoom() {
-  const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
+  const [searchParams] = useSearchParams();
+  const urlWalletId   = searchParams.get("walletId");
+  const urlRiskScore  = parseFloat(searchParams.get("riskScore") || "0.88");
+  const urlPlatform   = searchParams.get("platform") || "unknown";
+  const isFromAlert   = !!urlWalletId;
+
+const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
   const [analystBrief, setAnalystBrief] = useState<AnalystBrief | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"xai" | "fatf" | "brief">("xai");
+  const [sarGenerating, setSarGenerating] = useState(false);
+  const [activeTab, setActiveTab] = useState<"xai" | "fatf" | "brief" | "flow">("xai");
+  const autoBriefFired = useRef(false);
 
-  // Auto-select the first node
+  // Auto-select node — if coming from a Live Alert, use that wallet, else default demo node
   useEffect(() => {
-    // Simulate selecting the high-risk center node
-    setSelectedNode({
-      id: "0xA1...mule",
-      riskScore: 0.92,
-      riskLevel: "critical",
-      patterns: [
-        {
-          type: "pass_through",
-          severity: "critical",
-          description:
-            "Both receives (4) and sends (3) to multiple wallets (mule wallet pattern)",
-          detail:
-            "Classic smurfing intermediary — receives from multiple sources, redistributes to multiple destinations",
-        },
-        {
-          type: "fan_out",
-          severity: "high",
-          description:
-            "Sends to 3 different recipients (structuring indicator)",
-          detail: "Recipients: 3 unique wallets",
-        },
-        {
-          type: "high_activity",
-          severity: "high",
-          description:
-            "Very high transaction volume (7 total connections)",
-          detail: "Unusually high activity compared to typical wallets",
-        },
-      ],
-      featureImportance: [
-        { feature_name: "out_degree", importance: 0.85, value: 3 },
-        {
-          feature_name: "threshold_proximity_ratio",
-          importance: 0.72,
-          value: 0.95,
-        },
-        { feature_name: "burst_score", importance: 0.65, value: 0.78 },
-        { feature_name: "fan_out_ratio", importance: 0.58, value: 0.82 },
-        { feature_name: "total_sent", importance: 0.45, value: 495000 },
-      ],
-      graphMetrics: { in_degree: 4, out_degree: 3, total_connections: 7 },
-    });
-  }, []);
+    const platformPatterns: Record<string, { type: string; severity: string; description: string; detail: string }[]> = {
+      paytm:   [{ type: 'structuring', severity: 'critical', description: 'Sub-threshold split transactions detected across Paytm UPI rail', detail: 'Amounts clustered ₹9,800–₹9,950 — just below ₹10K RBI reporting limit' }],
+      phonepe: [{ type: 'fan_out',     severity: 'high',     description: 'Fan-out pattern: single source → multiple PhonePe recipients', detail: 'Recipients: 7 unique wallets within 4-minute window' }],
+      gpay:    [{ type: 'pass_through',severity: 'high',     description: 'Pass-through mule: receives and immediately re-sends via GPay', detail: 'Average hold time < 90 seconds before forwarding' }],
+      unknown: [{ type: 'high_activity',severity:'high',     description: 'Anomalous transaction velocity detected', detail: 'Burst score 3.2× above peer baseline' }],
+    };
+
+    const baseNode: SelectedNode = urlWalletId
+      ? {
+          id: urlWalletId,
+          riskScore: isNaN(urlRiskScore) ? 0.88 : urlRiskScore,
+          riskLevel: (isNaN(urlRiskScore) ? 0.88 : urlRiskScore) >= 0.75 ? 'critical' : 'high',
+          patterns: [
+            ...(platformPatterns[urlPlatform] || platformPatterns.unknown),
+            { type: 'threshold_proximity', severity: 'high', description: 'Transaction amounts within 2% of ₹10K reporting threshold', detail: 'FATF TR-08 threshold evasion pattern' },
+            { type: 'burst_score',         severity: 'high', description: 'High-velocity burst within 5-minute window', detail: 'Score: 0.87 — 95th percentile of flagged wallets' },
+          ],
+          featureImportance: [
+            { feature_name: 'out_degree',            importance: 0.88, value: 5 },
+            { feature_name: 'threshold_proximity',   importance: 0.79, value: 0.98 },
+            { feature_name: 'burst_score',           importance: 0.71, value: 0.87 },
+            { feature_name: 'fan_out_ratio',         importance: 0.62, value: 0.74 },
+            { feature_name: 'total_volume_sent',     importance: 0.51, value: 487500 },
+          ],
+          graphMetrics: { in_degree: 3, out_degree: 5, total_connections: 8 },
+        }
+      : {
+          id: "0xA1...mule",
+          riskScore: 0.92,
+          riskLevel: "critical",
+          patterns: [
+            { type: "pass_through",  severity: "critical", description: "Both receives (4) and sends (3) to multiple wallets (mule wallet pattern)", detail: "Classic smurfing intermediary — receives from multiple sources, redistributes to multiple destinations" },
+            { type: "fan_out",       severity: "high",     description: "Sends to 3 different recipients (structuring indicator)",                   detail: "Recipients: 3 unique wallets" },
+            { type: "high_activity", severity: "high",     description: "Very high transaction volume (7 total connections)",                       detail: "Unusually high activity compared to typical wallets" },
+          ],
+          featureImportance: [
+            { feature_name: "out_degree",               importance: 0.85, value: 3 },
+            { feature_name: "threshold_proximity_ratio", importance: 0.72, value: 0.95 },
+            { feature_name: "burst_score",              importance: 0.65, value: 0.78 },
+            { feature_name: "fan_out_ratio",            importance: 0.58, value: 0.82 },
+            { feature_name: "total_sent",               importance: 0.45, value: 495000 },
+          ],
+          graphMetrics: { in_degree: 4, out_degree: 3, total_connections: 7 },
+        };
+
+    setSelectedNode(baseNode);
+  }, [urlWalletId, urlRiskScore, urlPlatform]);
+
+  // Auto-trigger IBM AI Brief when arriving from a live alert (runs once after node is set)
+  useEffect(() => {
+    if (isFromAlert && selectedNode && !autoBriefFired.current) {
+      autoBriefFired.current = true;
+      const timer = setTimeout(() => {
+        setActiveTab("brief");
+        // Kick off brief generation
+        setBriefLoading(true);
+        setAnalystBrief(null);
+        ibmAiApi.generateBrief({
+          walletId: selectedNode.id,
+          riskScore: selectedNode.riskScore,
+          riskLevel: selectedNode.riskLevel,
+          patterns: selectedNode.patterns,
+          featureImportance: selectedNode.featureImportance,
+          graphMetrics: selectedNode.graphMetrics,
+        }).then(brief => {
+          setAnalystBrief(brief);
+        }).catch(err => {
+          console.error("Auto-brief failed:", err);
+        }).finally(() => {
+          setBriefLoading(false);
+        });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isFromAlert, selectedNode]);
 
   // Generate IBM brief when node is selected
   const generateBrief = useCallback(async () => {
@@ -478,7 +519,6 @@ export default function WarRoom() {
   }, [selectedNode]);
 
   // Generate FIU-IND SAR PDF
-  const [sarGenerating, setSarGenerating] = useState(false);
 
   const handleGenerateSAR = useCallback(async () => {
     if (!selectedNode) return;
@@ -664,6 +704,28 @@ export default function WarRoom() {
   return (
     <DashboardLayout>
       <div className="space-y-4">
+
+        {/* FEATURE-006: Alert Origin Banner — shown when navigating from LiveThreatMap */}
+        {isFromAlert && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30 animate-pulse-once">
+            {/* Step flow */}
+            <div className="flex items-center gap-2 text-xs font-mono flex-1">
+              <span className="px-2 py-1 rounded bg-red-500/20 border border-red-500/30 text-red-300 font-bold">① LIVE ALERT</span>
+              <ChevronRight className="w-3 h-3 text-gray-500" />
+              <span className="px-2 py-1 rounded bg-orange-500/20 border border-orange-500/30 text-orange-300 font-bold">② INVESTIGATE</span>
+              <ChevronRight className="w-3 h-3 text-gray-500" />
+              <span className="px-2 py-1 rounded bg-gray-500/10 border border-white/10 text-gray-400">③ Generate SAR</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Crosshair className="w-3.5 h-3.5 text-orange-400 animate-spin" style={{ animationDuration: '3s' }} />
+              <span className="text-xs text-orange-300">
+                Wallet <span className="font-mono font-bold text-white">{urlWalletId?.slice(0, 18)}…</span>
+                {" "}flagged via {urlPlatform.charAt(0).toUpperCase() + urlPlatform.slice(1)} · IBM AI Brief auto-loading…
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -696,6 +758,8 @@ export default function WarRoom() {
               <Button
                 variant="outline"
                 className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+                onClick={handleGenerateSAR}
+                disabled={sarGenerating}
                 onClick={handleGenerateSAR}
                 disabled={sarGenerating}
               >
@@ -742,11 +806,12 @@ export default function WarRoom() {
           {/* Right: XAI Panel (40%) */}
           <Card className="lg:col-span-2 bg-white/5 border-white/10 backdrop-blur-xl overflow-hidden flex flex-col">
             <CardHeader className="pb-2 shrink-0">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {[
                   { key: "xai" as const, label: "XAI", icon: BarChart3 },
                   { key: "fatf" as const, label: "FATF", icon: FileWarning },
                   { key: "brief" as const, label: "AI Brief", icon: Brain },
+                  { key: "flow" as const, label: "Money Flow", icon: Network },
                 ].map((tab) => (
                   <button
                     key={tab.key}
@@ -977,9 +1042,11 @@ export default function WarRoom() {
                   ) : (
                     <div className="text-center py-12">
                       <Brain className="h-10 w-10 text-blue-500/30 mx-auto mb-3" />
-                      <p className="text-gray-500 text-sm mb-3">
-                        Generate an AI-powered analyst brief using IBM
-                        watsonx.ai
+                      <p className="text-gray-400 font-medium text-sm mb-2">
+                        Click 'IBM AI Brief' above to generate a watsonx.ai analyst report for this wallet.
+                      </p>
+                      <p className="text-gray-500 text-xs mb-4">
+                        The model will synthesize risk factors, structural patterns, and FATF typologies into an executive summary.
                       </p>
                       <Button
                         variant="outline"
@@ -992,6 +1059,10 @@ export default function WarRoom() {
                       </Button>
                     </div>
                   )}
+                </div>
+              ) : activeTab === "flow" ? (
+                <div className="h-full overflow-y-auto">
+                  <MoneyFlowSankey />
                 </div>
               ) : null}
             </CardContent>

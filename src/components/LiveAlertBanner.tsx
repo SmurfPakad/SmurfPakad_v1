@@ -38,7 +38,7 @@ export default function LiveAlertBanner() {
 
       ws.onopen = () => {
         setConnected(true);
-        console.log("LiveAlertBanner: WS connected");
+        // WS connected silently
       };
 
       ws.onmessage = (event) => {

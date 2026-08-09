@@ -84,6 +84,15 @@ export default function Graph() {
     }
   }, [selectedUploadId, topK, hop]);
 
+  // Auto-fetch graph data if selectedUploadId is set from URL param
+  const hasAutoFetched = useRef(false);
+  useEffect(() => {
+    if (selectedUploadId && !hasAutoFetched.current) {
+      hasAutoFetched.current = true;
+      fetchGraphData();
+    }
+  }, [selectedUploadId, fetchGraphData]);
+
   // Handle local file upload (fallback)
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

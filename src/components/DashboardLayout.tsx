@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -51,7 +51,24 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  
+
+  // IBM watsonx.ai connection status
+  const [ibmStatus, setIbmStatus] = useState<'checking' | 'connected' | 'demo'>('checking');
+
+  useEffect(() => {
+    // Check if backend is reachable (proxy for IBM connectivity)
+    const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    fetch(`${API}/api/v1/health`, { signal: AbortSignal.timeout(2500) })
+      .then(r => r.ok ? setIbmStatus('connected') : setIbmStatus('demo'))
+      .catch(() => setIbmStatus('demo'));
+  }, []);
+
+  const ibmPillConfig = {
+    checking:  { dot: 'bg-gray-400 animate-pulse', badge: 'border-gray-500/30 bg-gray-500/10', text: 'text-gray-400', label: 'Checking…',   model: '' },
+    connected: { dot: 'bg-green-400',              badge: 'border-green-500/30 bg-green-500/10 shadow-[0_0_12px_rgba(34,197,94,0.25)]', text: 'text-green-400', label: '[CONNECTED]', model: 'granite-3-8b-instruct' },
+    demo:      { dot: 'bg-yellow-400 animate-pulse', badge: 'border-yellow-500/30 bg-yellow-500/10 shadow-[0_0_12px_rgba(234,179,8,0.2)]', text: 'text-yellow-400', label: '[DEMO MODE]', model: 'granite-3-8b-instruct' },
+  }[ibmStatus];
+
   const userStr = localStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : null;
 
@@ -122,6 +139,24 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           })}
         </nav>
 
+        {/* IBM Status — sidebar bottom */}
+        <div className="px-4 pb-2">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${ibmPillConfig.badge} transition-all duration-500`}>
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${ibmPillConfig.dot}`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${ibmPillConfig.dot}`} />
+            </span>
+            <div className="min-w-0">
+              <p className={`text-[10px] font-bold ${ibmPillConfig.text} leading-none`}>
+                IBM watsonx.ai &nbsp;<span className="font-normal opacity-80">{ibmPillConfig.label}</span>
+              </p>
+              {ibmPillConfig.model && (
+                <p className="text-[9px] text-gray-600 mt-0.5 font-mono truncate">{ibmPillConfig.model}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* User section */}
         <div className="border-t border-gray-200 dark:border-crypto-purple/20 p-4">
           <div className="flex items-center space-x-3 mb-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5">
@@ -178,10 +213,19 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </div>
           
           <div className="flex items-center gap-2">
-            {/* IBM Powered */}
-            <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/5 border border-blue-500/10">
-              <span className="text-blue-400 font-bold text-[9px]">IBM</span>
-              <span className="text-blue-300/50 text-[8px]">watsonx</span>
+            {/* IBM watsonx.ai Status Pill — FEATURE-007 */}
+            <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-500 ${ibmPillConfig.badge}`}>
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${ibmPillConfig.dot}`} />
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${ibmPillConfig.dot}`} />
+              </span>
+              <span className={`font-bold text-[11px] tracking-wide ${ibmPillConfig.text}`}>
+                IBM watsonx.ai
+                <span className="font-normal ml-1 opacity-80">{ibmPillConfig.label}</span>
+                {ibmPillConfig.model && (
+                  <span className="text-gray-500 font-mono ml-1.5 text-[10px]">{ibmPillConfig.model}</span>
+                )}
+              </span>
             </div>
             
             {/* Notification Bell */}

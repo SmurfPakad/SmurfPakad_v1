@@ -33,7 +33,7 @@ const AuthButton = () => {
         localStorage.removeItem('user');
       }
     }
-    
+
     // Check for OAuth callback code in URL
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -53,10 +53,10 @@ const AuthButton = () => {
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('authToken', response.access_token);
-      
+
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
-      
+
       // Redirect to dashboard
       window.location.href = '/cryptoflow/dashboard';
     } catch (error) {
@@ -68,17 +68,26 @@ const AuthButton = () => {
 
   const handleOAuthLogin = async (provider: string) => {
     setIsLoading(true);
-    // Bypass Google OAuth and login directly
-    const mockUser = {
-      name: 'Demo User',
-      email: 'demo@smurfpakad.ai'
-    };
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    localStorage.setItem('authToken', 'mock_jwt_token_' + Date.now());
-    setIsOpen(false);
-    setIsLoading(false);
-    window.location.href = '/cryptoflow/dashboard';
+    try {
+      // Get the authorization URL from backend
+      const response = await authApi.getGoogleAuthUrl();
+      // Redirect to the authorization URL
+      window.location.href = response.authorization_url;
+    } catch (error) {
+      console.error('OAuth login error:', error);
+      // Fallback: simulate login for development
+      const mockUser = {
+        name: 'Demo User',
+        email: 'demo@smurfpakad.ai'
+      };
+      setUser(mockUser);
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      localStorage.setItem('authToken', 'mock_jwt_token_' + Date.now());
+      setIsOpen(false);
+      window.location.href = '/cryptoflow/dashboard';
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -139,7 +148,7 @@ const AuthButton = () => {
             Sign in with your preferred provider to access advanced features
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-3 mt-6">
           {OAUTH_PROVIDERS.map((provider) => (
             <Button

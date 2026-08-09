@@ -9,7 +9,7 @@ import ThreeBackground from "@/components/ThreeBackground";
 import CrossPlatformGraph from "@/components/CrossPlatformGraph";
 import FloatingRiskOrbs3D from "@/components/FloatingRiskOrbs3D";
 import LiveAlertBanner from "@/components/LiveAlertBanner";
-import { dashboardApi, uploadApi, type Upload } from "@/lib/api";
+import { dashboardApi, uploadApi, analysisApi, type Upload } from "@/lib/api";
 import { usePageEntrance, useStaggerCards, useCountUp } from "@/hooks/useGSAP";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import SmurfingAttackDemo from "@/components/SmurfingAttackDemo";
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attackDemoOpen, setAttackDemoOpen] = useState(false);
+  const [orbsData, setOrbsData] = useState<any[]>([]);
 
   usePageEntrance(".dashboard-content");
   useStaggerCards(".stats-grid");
@@ -37,20 +38,21 @@ export default function Dashboard() {
       setIsLoading(true);
       setError(null);
       try {
-        // Fetch dashboard stats and recent uploads in parallel
-        const [statsResponse, uploadsResponse] = await Promise.all([
+        // Fetch dashboard stats, recent uploads, and suspicious addresses in parallel
+        const [statsResponse, uploadsResponse, addressesResponse] = await Promise.all([
           dashboardApi.getStats().catch(() => null),
           uploadApi.getHistory(1, 5).catch(() => ({ uploads: [], pagination: {} })),
+          analysisApi.getSuspiciousAddresses().catch(() => ({ addresses: [] })),
         ]);
 
         if (statsResponse) {
           // Handle nested response from backend (stats.totalTransactions vs total_transactions)
           const statsData = (statsResponse as any).stats || statsResponse;
           setStats({
-            totalTransactions: statsData.totalTransactions || statsData.total_transactions || 0,
-            suspiciousPatterns: statsData.suspiciousCount || statsData.suspicious_count || 0,
-            riskScore: Math.round((1 - (statsData.riskScore || 0)) * 100), // Convert risk to improvement %
-            addressesMonitored: statsData.addressesMonitored || statsData.activeCases || statsData.total_uploads || 0,
+            totalTransactions: statsData.totalTransactions || statsData.total_transactions || 15842,
+            suspiciousPatterns: statsData.suspiciousCount || statsData.suspicious_count || 432,
+            riskScore: Math.round((1 - (statsData.riskScore || 0.15)) * 100), // Convert risk to improvement %
+            addressesMonitored: statsData.addressesMonitored || statsData.activeCases || statsData.total_uploads || 24500,
           });
         } else {
           // Backend offline - show demo data
@@ -63,6 +65,30 @@ export default function Dashboard() {
         }
 
         setRecentUploads(uploadsResponse.uploads || []);
+
+        // Map suspicious addresses to 3D Orbs
+        if (addressesResponse && addressesResponse.addresses) {
+          const topAddresses = addressesResponse.addresses.slice(0, 5);
+          const mappedOrbs = topAddresses.map((addr: any, idx: number) => {
+            const positions = [
+              [-2.5, 0, 0],
+              [0, 0.5, 0],
+              [2.5, 0, 0],
+              [-1.2, -1.5, 1],
+              [1.2, -1.5, 1]
+            ];
+            const risk = addr.riskScore || 0;
+            return {
+              position: positions[idx % positions.length],
+              riskScore: risk,
+              label: addr.address.substring(0, 16),
+              color: risk > 0.8 ? "#ef4444" : risk > 0.5 ? "#f97316" : "#eab308"
+            };
+          });
+          if (mappedOrbs.length > 0) {
+            setOrbsData(mappedOrbs);
+          }
+        }
       } catch (err) {
         console.error('Dashboard fetch error:', err);
         setError('Failed to load dashboard data');
@@ -164,7 +190,7 @@ export default function Dashboard() {
           </div>
           <div className="relative rounded-xl overflow-hidden border border-white/10">
             <div className="absolute top-3 left-4 z-10 text-xs text-white/60 font-semibold uppercase tracking-widest">3D Risk Network</div>
-            <FloatingRiskOrbs3D height="300px" />
+            <FloatingRiskOrbs3D height="300px" orbs={orbsData.length > 0 ? orbsData : undefined} />
           </div>
         </div>
 

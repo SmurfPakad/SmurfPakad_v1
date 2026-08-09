@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Shield,
   ShieldAlert,
@@ -99,6 +99,7 @@ function PulseDot({ color = "green" }: { color?: string }) {
 // Alert Feed Item
 // ============================================================================
 function AlertItem({ alert, index }: { alert: SafeguardAlert; index: number }) {
+  const navigate = useNavigate();
   const riskColors: Record<string, string> = {
     critical: "border-red-500/50 bg-red-500/10",
     high: "border-orange-500/50 bg-orange-500/10",
@@ -150,9 +151,9 @@ function AlertItem({ alert, index }: { alert: SafeguardAlert; index: number }) {
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <span className="font-mono font-bold text-white">
-              ₹{(alert.amount ?? 0).toLocaleString()}
+              ₹{(alert.amount || 0).toLocaleString()}
             </span>
-            <span className="capitalize">{alert.platform}</span>
+            <span className="capitalize">{alert.platform || 'unknown'}</span>
             <span>{timeDiff()}</span>
           </div>
           {alert.reasons && alert.reasons.length > 0 && (
@@ -170,9 +171,20 @@ function AlertItem({ alert, index }: { alert: SafeguardAlert; index: number }) {
           >
             {alert.riskLevel}
           </Badge>
-          <span className="text-xs font-mono text-gray-500">
+          <span className="text-xs font-mono text-gray-500 mb-1">
             {(alert.riskScore * 100).toFixed(0)}%
           </span>
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            className="h-7 text-xs border border-red-500/40 text-red-400 hover:bg-red-500/10 px-2 font-semibold"
+            onClick={() => navigate(
+              `/cryptoflow/warroom?walletId=${encodeURIComponent(alert.recipient || '')}&riskScore=${alert.riskScore.toFixed(2)}&platform=${encodeURIComponent(alert.platform || 'unknown')}`
+            )}
+          >
+            🔍 Investigate
+            <ChevronRight className="w-3 h-3 ml-1" />
+          </Button>
         </div>
       </div>
     </div>
@@ -348,6 +360,7 @@ export default function LiveThreatMap() {
   const [wsConnected, setWsConnected] = useState(false);
   const [attackDemoOpen, setAttackDemoOpen] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const navigate = useNavigate();
 
   // Fetch initial stats
   useEffect(() => {
@@ -395,51 +408,61 @@ export default function LiveThreatMap() {
         } catch { /* ignore */ }
       };
       ws.onclose = () => setWsConnected(false);
-      ws.onerror = () => setWsConnected(false);
+      ws.onerror = () => {
+        setWsConnected(false);
+        // Fallback to demo mode if connection fails
+        startDemoMode();
+      };
       wsRef.current = ws;
       return () => { ws.close(); };
     }
 
     // ── Demo mode — simulate live alerts without backend auth ────────────
-    setWsConnected(true); // show LIVE in demo
+    const startDemoMode = () => {
+      setWsConnected(true); // show LIVE in demo
 
-    const MOCK_ALERTS: SafeguardAlert[] = [
-      { id: "a1",  severity: "critical", riskLevel: "critical", walletId: "mule_004@paytm",           message: "Critical: Smurfing cluster detected — ₹9,800 x14 to collector_001",    timestamp: new Date().toISOString() },
-      { id: "a2",  severity: "high",     riskLevel: "high",     walletId: "wallet_0175@crypto_btc",    message: "High: Rapid fan-out to 4 wallets within 90 seconds",                   timestamp: new Date(Date.now()-20000).toISOString() },
-      { id: "a3",  severity: "high",     riskLevel: "high",     walletId: "mule_006@paytm",            message: "High: Cross-platform transfer UPI→ETH detected (layering indicator)",  timestamp: new Date(Date.now()-55000).toISOString() },
-      { id: "a4",  severity: "medium",   riskLevel: "medium",   walletId: "wallet_0005@gpay",          message: "Medium: Transaction velocity spike — 18 txns in 5 minutes",            timestamp: new Date(Date.now()-120000).toISOString() },
-      { id: "a5",  severity: "critical", riskLevel: "critical", walletId: "collector_001@crypto_eth",  message: "Critical: Fan-in aggregation — 10 wallets → ₹38.5L collected",         timestamp: new Date(Date.now()-180000).toISOString() },
-      { id: "a6",  severity: "medium",   riskLevel: "medium",   walletId: "shell_co_3@upi_biz",        message: "Medium: Shell company structuring 8x₹9,500 over 2 hours",              timestamp: new Date(Date.now()-300000).toISOString() },
-      { id: "a7",  severity: "high",     riskLevel: "high",     walletId: "mule_008@paytm",            message: "High: FATF TR-05 triggered — threshold proximity ratio 0.96",          timestamp: new Date(Date.now()-400000).toISOString() },
-    ];
+      const MOCK_ALERTS: SafeguardAlert[] = [
+        { id: "a1",  severity: "critical", riskLevel: "critical", walletId: "mule_004@paytm",           message: "Critical: Smurfing cluster detected — ₹9,800 x14 to collector_001",    timestamp: new Date().toISOString() },
+        { id: "a2",  severity: "high",     riskLevel: "high",     walletId: "wallet_0175@crypto_btc",    message: "High: Rapid fan-out to 4 wallets within 90 seconds",                   timestamp: new Date(Date.now()-20000).toISOString() },
+        { id: "a3",  severity: "high",     riskLevel: "high",     walletId: "mule_006@paytm",            message: "High: Cross-platform transfer UPI→ETH detected (layering indicator)",  timestamp: new Date(Date.now()-55000).toISOString() },
+        { id: "a4",  severity: "medium",   riskLevel: "medium",   walletId: "wallet_0005@gpay",          message: "Medium: Transaction velocity spike — 18 txns in 5 minutes",            timestamp: new Date(Date.now()-120000).toISOString() },
+        { id: "a5",  severity: "critical", riskLevel: "critical", walletId: "collector_001@crypto_eth",  message: "Critical: Fan-in aggregation — 10 wallets → ₹38.5L collected",         timestamp: new Date(Date.now()-180000).toISOString() },
+        { id: "a6",  severity: "medium",   riskLevel: "medium",   walletId: "shell_co_3@upi_biz",        message: "Medium: Shell company structuring 8x₹9,500 over 2 hours",              timestamp: new Date(Date.now()-300000).toISOString() },
+        { id: "a7",  severity: "high",     riskLevel: "high",     walletId: "mule_008@paytm",            message: "High: FATF TR-05 triggered — threshold proximity ratio 0.96",          timestamp: new Date(Date.now()-400000).toISOString() },
+      ];
 
-    // Show existing alerts immediately
-    setAlerts(MOCK_ALERTS);
+      // Show existing alerts immediately
+      setAlerts(MOCK_ALERTS);
 
-    // Inject new random alert every 8s
-    let alertIdx = 0;
-    const LIVE_ALERT_POOL: SafeguardAlert[] = [
-      { id: "l1", severity: "critical", riskLevel: "critical", walletId: "dark_wallet@crypto_btc",  message: "🔴 LIVE: New critical wallet flagged — GNN score 96%",                timestamp: "" },
-      { id: "l2", severity: "high",     riskLevel: "high",     walletId: "rapid_mule_9@phonepe",    message: "🟠 LIVE: Rapid transfer pattern — 5 hops in 3 minutes",               timestamp: "" },
-      { id: "l3", severity: "medium",   riskLevel: "medium",   walletId: "structured_x@gpay",       message: "🟡 LIVE: Structuring alert — 6 sub-threshold payments detected",       timestamp: "" },
-      { id: "l4", severity: "critical", riskLevel: "critical", walletId: "mixer_exit_7@crypto_eth", message: "🔴 LIVE: Crypto mixer exit detected — cross-chain bridge activity",    timestamp: "" },
-    ];
+      // Inject new random alert every 8s
+      let alertIdx = 0;
+      const LIVE_ALERT_POOL: SafeguardAlert[] = [
+        { id: "l1", severity: "critical", riskLevel: "critical", walletId: "dark_wallet@crypto_btc",  message: "🔴 LIVE: New critical wallet flagged — GNN score 96%",                timestamp: "" },
+        { id: "l2", severity: "high",     riskLevel: "high",     walletId: "rapid_mule_9@phonepe",    message: "🟠 LIVE: Rapid transfer pattern — 5 hops in 3 minutes",               timestamp: "" },
+        { id: "l3", severity: "medium",   riskLevel: "medium",   walletId: "structured_x@gpay",       message: "🟡 LIVE: Structuring alert — 6 sub-threshold payments detected",       timestamp: "" },
+        { id: "l4", severity: "critical", riskLevel: "critical", walletId: "mixer_exit_7@crypto_eth", message: "🔴 LIVE: Crypto mixer exit detected — cross-chain bridge activity",    timestamp: "" },
+      ];
 
-    const liveInterval = setInterval(() => {
-      const base = LIVE_ALERT_POOL[alertIdx % LIVE_ALERT_POOL.length];
-      const newAlert: SafeguardAlert = { ...base, id: `live_${Date.now()}`, timestamp: new Date().toISOString() };
-      setAlerts(prev => [newAlert, ...prev].slice(0, 50));
-      setStats(prev => ({
-        ...prev,
-        totalChecks:  prev.totalChecks + Math.floor(Math.random() * 4 + 1),
-        totalFlagged: prev.totalFlagged + (base.severity === "critical" ? 1 : 0),
-        flaggedRecipients: prev.flaggedRecipients + (base.severity !== "medium" ? 1 : 0),
-        flagRate: parseFloat(((prev.totalFlagged + 1) / (prev.totalChecks + 5) * 100).toFixed(2)),
-      }));
-      alertIdx++;
-    }, 8000);
+      const liveInterval = setInterval(() => {
+        const base = LIVE_ALERT_POOL[alertIdx % LIVE_ALERT_POOL.length];
+        const newAlert: SafeguardAlert = { ...base, id: `live_${Date.now()}`, timestamp: new Date().toISOString() };
+        setAlerts(prev => [newAlert, ...prev].slice(0, 50));
+        setStats(prev => ({
+          ...prev,
+          totalChecks:  prev.totalChecks + Math.floor(Math.random() * 4 + 1),
+          totalFlagged: prev.totalFlagged + (base.severity === "critical" ? 1 : 0),
+          flaggedRecipients: prev.flaggedRecipients + (base.severity !== "medium" ? 1 : 0),
+          flagRate: parseFloat(((prev.totalFlagged + 1) / (prev.totalChecks + 5) * 100).toFixed(2)),
+        }));
+        alertIdx++;
+      }, 8000);
 
-    return () => { clearInterval(liveInterval); };
+      return () => { clearInterval(liveInterval); };
+    };
+
+    if (!localStorage.getItem("auth_token")) {
+      return startDemoMode();
+    }
   }, []);
 
   const criticalCount = alerts.filter(

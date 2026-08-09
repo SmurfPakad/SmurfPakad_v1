@@ -99,29 +99,35 @@ const ThreeBackground = ({ variant = 'particles' }: ThreeBackgroundProps) => {
             (plane.geometry as THREE.PlaneGeometry).attributes.position.needsUpdate = true;
             plane.rotation.z += 0.002;
           }
-          try { renderer.render(scene, camera); } catch { cancelAnimationFrame(animationIdRef.current!); }
+          renderer.render(scene, camera);
         };
         animate();
 
-        const onResize = () => {
+        const handleResize = () => {
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
         };
-        window.addEventListener('resize', onResize);
+        window.addEventListener('resize', handleResize);
 
         cleanup = () => {
-          window.removeEventListener('resize', onResize);
-          if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
-          try {
-            if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
-              containerRef.current.removeChild(renderer.domElement);
+          window.removeEventListener('resize', handleResize);
+          if (animationIdRef.current !== null) {
+            cancelAnimationFrame(animationIdRef.current);
+          }
+          if (containerRef.current && renderer.domElement) {
+            containerRef.current.removeChild(renderer.domElement);
+          }
+          renderer.dispose();
+          objects.forEach(obj => {
+            if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) {
+              obj.geometry.dispose();
+              (obj.material as THREE.Material).dispose();
             }
-            renderer.dispose();
-          } catch { /* ignore */ }
+          });
         };
       } catch (err) {
-        console.warn('ThreeBackground: WebGL unavailable, using CSS fallback.', err);
+        console.warn('ThreeJS WebGL initialization failed (falling back to CSS):', err);
         setWebglFailed(true);
       }
     })();
