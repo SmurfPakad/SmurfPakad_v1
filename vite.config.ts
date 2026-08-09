@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => ({
     base: "/cryptoflow/",
   server: {
     host: "::",
-    port: 8080,
+    port: 5173,
     open: true,
   },
   plugins: [
