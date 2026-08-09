@@ -218,3 +218,63 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ============================================================================
+   Hero Canvas Scroll (Apple-style frame scrubbing)
+   ============================================================================ */
+
+/* Ensure smooth scroll globally */
+html {
+  scroll-behavior: auto; /* keep auto so our JS has precise control */
+}
+
+/* Hero canvas fills perfectly */
+#hero-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Navbar must float above the canvas */
+nav, header {
+  position: relative;
+  z-index: 50;
+}
+
+/* Prevent text selection on the overlay during scroll */
+.hero-overlay-text {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Progress bar smooth fill */
+.hero-progress-fill {
+  will-change: width;
+  transition: none; /* driven by JS, no CSS transition needed */
+}
+
+/* Subtle letter spacing animation on SMURFPAKAD */
+@keyframes letterSpacingExpand {
+  from { letter-spacing: -0.06em; }
+  to   { letter-spacing: -0.03em; }
+}
+
+.hero-title-animate {
+  animation: letterSpacingExpand 1.2s ease-out both;
+}
+
+/* CTA section fade-in will be handled via inline styles from React */
+
+/* Glowing gradient border on CTA buttons */
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.gradient-border-animated {
+  background: linear-gradient(270deg, #9333ea, #6366f1, #38bdf8, #9333ea);
+  background-size: 300% 300%;
+  animation: gradientShift 4s ease infinite;
+}
+
