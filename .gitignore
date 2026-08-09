@@ -1,3 +1,14 @@
+# Environment
+.env
+.env.local
+.env.*.local
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -20,14 +31,6 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-.venv/
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-
 # PyTorch / Model Checkpoints
 *.pt
 *.pth
@@ -41,7 +44,6 @@ scaler_params.pkl
 data/*.pt
 data/*.csv
 data/*.npz
-*.pt
 
 # Jupyter Notebook
 .ipynb_checkpoints/
@@ -62,11 +64,6 @@ Thumbs.db
 *.log
 logs/
 
-# Environment
-.env
-.env.local
-.env.*.local
-
 # Coverage / Test
 .coverage
 htmlcov/
@@ -81,3 +78,34 @@ htmlcov/
 tmp/
 temp/
 *.tmp
+
+# ML artifacts
+*.model
+*.onnx
+wandb/
+mlruns/
+lightning_logs/
+
+# Dataset (large files)
+Backend/dataset/
+*.csv
+*.h5
+*.hdf5
+
+# Node (Frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+*.temp
+.cache/
+
+# ML generated visualizations
+AI/ML/*.png
+AI/ML/*_metadata.json
+AI/ML/training_history.json
+
+# Lock files (large)
+bun.lockb
