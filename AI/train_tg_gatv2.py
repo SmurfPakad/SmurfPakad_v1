@@ -11,7 +11,7 @@ import warnings
 warnings.filterwarnings('ignore', message='.*scatter.*')
 
 # Use OUR modified GATv2Conv with temperature gating
-from gatv2_conv import GATv2Conv
+from AI.gatv2_conv import GATv2Conv
 
 torch.manual_seed(42)
 np.random.seed(42)

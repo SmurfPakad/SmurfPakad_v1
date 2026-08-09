@@ -32,13 +32,11 @@ wheels/
 *.egg
 
 # PyTorch / Model Checkpoints
-*.pt
-*.pth
+
+
 *.ckpt
 *.bin
-All_models/
-*.pkl
-scaler_params.pkl
+
 
 # Data
 data/*.pt
