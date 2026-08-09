@@ -138,12 +138,38 @@ function PatternCard({ pattern }: { pattern: any }) {
 // ============================================================================
 // FATF Flag Component
 // ============================================================================
-function FATFFlag({ flag }: { flag: string }) {
+interface FATFFlagData {
+  rule?: string;
+  description?: string;
+  severity?: string;
+}
+
+function FATFFlag({ flag }: { flag: string | FATFFlagData }) {
+  // Handle both plain strings and structured objects from IBM brief
+  const isObject = typeof flag === "object" && flag !== null;
+  const ruleLabel = isObject ? (flag as FATFFlagData).rule : null;
+  const text = isObject
+    ? `${(flag as FATFFlagData).rule}: ${(flag as FATFFlagData).description}`
+    : (flag as string);
+  const sev = isObject ? (flag as FATFFlagData).severity : null;
+
+  const sevColors: Record<string, string> = {
+    critical: "border-red-500/30 bg-red-500/5 text-red-300/80",
+    high:     "border-orange-500/30 bg-orange-500/5 text-orange-300/80",
+    medium:   "border-yellow-500/30 bg-yellow-500/5 text-yellow-300/80",
+  };
+  const cls = sevColors[sev || ""] || "border-orange-500/20 bg-orange-500/5 text-orange-300/80";
+
   return (
-    <div className="p-3 rounded-lg bg-orange-500/5 border border-orange-500/20">
+    <div className={`p-3 rounded-lg border ${cls}`}>
       <div className="flex items-start gap-2">
-        <FileWarning className="h-4 w-4 text-orange-400 mt-0.5 shrink-0" />
-        <p className="text-xs text-orange-300/80 leading-relaxed">{flag}</p>
+        <FileWarning className="h-4 w-4 mt-0.5 shrink-0 text-orange-400" />
+        <div>
+          {ruleLabel && (
+            <span className="text-xs font-semibold text-orange-300 block mb-0.5">{ruleLabel}</span>
+          )}
+          <p className="text-xs leading-relaxed">{text}</p>
+        </div>
       </div>
     </div>
   );
