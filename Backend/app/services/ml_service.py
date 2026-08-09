@@ -11,14 +11,36 @@ Provides:
 import os
 import sys
 import json
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Optional, Set
 from pathlib import Path
 from collections import deque
+
+# ── Compatibility patch for torch/transformers version mismatch ──────────────
+# transformers >=4.41 calls _register_pytree_node(serialized_type_name=...)
+# but some PyTorch builds don't have that kwarg. We wrap it to swallow extras.
+try:
+    import torch.utils._pytree as _tp
+    if hasattr(_tp, "_register_pytree_node"):
+        _orig = _tp._register_pytree_node
+        def _patched_register(*args, **kwargs):
+            # Drop kwargs not accepted by original
+            import inspect
+            sig = inspect.signature(_orig)
+            valid = {k: v for k, v in kwargs.items() if k in sig.parameters}
+            return _orig(*args, **valid)
+        _tp._register_pytree_node = _patched_register
+        _tp.register_pytree_node = _patched_register
+except Exception:
+    pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
 
 # Add AI/ML to path for model import
 ML_PATH = Path(__file__).parent.parent.parent.parent / "AI" / "ML"

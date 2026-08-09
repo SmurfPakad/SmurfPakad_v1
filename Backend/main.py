@@ -2,6 +2,25 @@
 SMURF HUNTER Backend - FastAPI Application
 Anti-Money Laundering Detection System
 """
+# ── PyTorch/Transformers compatibility patch ──────────────────────────────────
+# transformers >=4.41 calls _register_pytree_node(serialized_type_name=...)
+# but some PyTorch builds don't support that kwarg. Wrap it to swallow extras.
+try:
+    import torch.utils._pytree as _tp
+    if hasattr(_tp, "_register_pytree_node"):
+        _orig_rp = _tp._register_pytree_node
+        def _patched_register(*args, **kwargs):
+            import inspect
+            sig = inspect.signature(_orig_rp)
+            valid = {k: v for k, v in kwargs.items() if k in sig.parameters}
+            return _orig_rp(*args, **valid)
+        _tp._register_pytree_node = _patched_register
+        _tp.register_pytree_node = _patched_register
+except Exception:
+    pass
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 import logging
 from contextlib import asynccontextmanager
 
@@ -25,6 +44,7 @@ from app.routers import (
     agent_router,
     governance_router,
     federated_router,
+    watson_nlp_router,
 )
 from app.services.ml_service import ml_service
 
@@ -161,6 +181,9 @@ app.include_router(governance_router, prefix=API_V1_PREFIX)
 
 # Federated Learning (cross-bank privacy-preserving training)
 app.include_router(federated_router, prefix=API_V1_PREFIX)
+
+# IBM Watson NLP (transaction narration analysis)
+app.include_router(watson_nlp_router, prefix=API_V1_PREFIX)
 
 
 # ==================== Health Check ====================

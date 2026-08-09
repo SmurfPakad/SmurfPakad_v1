@@ -133,6 +133,70 @@ class IBMWatsonxService:
         except Exception as e:
             logger.error(f"watsonx.ai API call failed: {e}")
             raise
+
+    async def _call_groq(self, prompt: str, max_tokens: int = 1024) -> str:
+        """
+        Groq API fallback — 100% free, no credit card needed.
+        Sign up at: https://console.groq.com (just email, no card)
+        Uses Llama 3.1 70B — comparable quality to Granite.
+        Set GROQ_API_KEY in your .env to enable.
+        """
+        import os
+        groq_key = os.getenv("GROQ_API_KEY")
+        if not groq_key:
+            raise ValueError("GROQ_API_KEY not set")
+
+        client = await self._get_http_client()
+        try:
+            response = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                json={
+                    "model": "llama-3.1-70b-versatile",
+                    "messages": [
+                        {"role": "system", "content": "You are an expert AML analyst at a financial intelligence unit."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "max_tokens": max_tokens,
+                    "temperature": 0.3,
+                },
+                headers={
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+            response.raise_for_status()
+            text = response.json()["choices"][0]["message"]["content"].strip()
+            logger.info(f"Groq (Llama 3.1) generated {len(text)} chars")
+            return text
+        except Exception as e:
+            logger.error(f"Groq API call failed: {e}")
+            raise
+
+    async def _call_with_fallback(self, prompt: str, max_tokens: int = 1024) -> tuple[str, str]:
+        """
+        Try IBM watsonx.ai → Groq (Llama 3.1) → template engine.
+        Returns (generated_text, model_used).
+        """
+        # 1. Try IBM watsonx.ai
+        if self.is_configured:
+            try:
+                text = await self._call_watsonx(prompt, max_tokens)
+                return text, "ibm/granite-3-3-8b-instruct"
+            except Exception as e:
+                logger.warning(f"watsonx.ai unavailable, trying Groq: {e}")
+
+        # 2. Try Groq (free, no card)
+        import os
+        if os.getenv("GROQ_API_KEY"):
+            try:
+                text = await self._call_groq(prompt, max_tokens)
+                return text, "groq/llama-3.1-70b-versatile"
+            except Exception as e:
+                logger.warning(f"Groq unavailable, using template: {e}")
+
+        # 3. Template engine fallback
+        raise ValueError("No LLM available — use template fallback")
+
     
     # =========================================================================
     # Public API
