@@ -172,11 +172,48 @@ class IBMWatsonxService:
             logger.error(f"Groq API call failed: {e}")
             raise
 
+    async def _call_gemini(self, prompt: str, max_tokens: int = 1024) -> str:
+        """
+        Google Gemini API fallback — free tier, no credit card needed.
+        Get key at: https://aistudio.google.com/apikey
+        Uses gemini-1.5-flash (fast, high quality).
+        Set GEMINI_API_KEY in your .env to enable.
+        """
+        import os
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if not gemini_key:
+            raise ValueError("GEMINI_API_KEY not set")
+
+        client = await self._get_http_client()
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            response = await client.post(
+                url,
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "maxOutputTokens": max_tokens,
+                        "temperature": 0.3,
+                    },
+                },
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            logger.info(f"Gemini generated {len(text)} chars")
+            return text
+        except Exception as e:
+            logger.error(f"Gemini API call failed: {e}")
+            raise
+
     async def _call_with_fallback(self, prompt: str, max_tokens: int = 1024) -> tuple[str, str]:
         """
-        Try IBM watsonx.ai → Groq (Llama 3.1) → template engine.
+        LLM fallback chain: IBM watsonx.ai → Groq (Llama 3.1) → Gemini → template
         Returns (generated_text, model_used).
         """
+        import os
+
         # 1. Try IBM watsonx.ai
         if self.is_configured:
             try:
@@ -186,16 +223,24 @@ class IBMWatsonxService:
                 logger.warning(f"watsonx.ai unavailable, trying Groq: {e}")
 
         # 2. Try Groq (free, no card)
-        import os
         if os.getenv("GROQ_API_KEY"):
             try:
                 text = await self._call_groq(prompt, max_tokens)
                 return text, "groq/llama-3.1-70b-versatile"
             except Exception as e:
-                logger.warning(f"Groq unavailable, using template: {e}")
+                logger.warning(f"Groq unavailable, trying Gemini: {e}")
 
-        # 3. Template engine fallback
+        # 3. Try Gemini (free, no card)
+        if os.getenv("GEMINI_API_KEY"):
+            try:
+                text = await self._call_gemini(prompt, max_tokens)
+                return text, "google/gemini-1.5-flash"
+            except Exception as e:
+                logger.warning(f"Gemini unavailable, using template: {e}")
+
+        # 4. Template engine fallback
         raise ValueError("No LLM available — use template fallback")
+
 
     
     # =========================================================================

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, Loader2, Shield, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronRight, Cpu, Zap, FileWarning, Globe, Brain } from 'lucide-react';
 import { agentApi } from '@/lib/api';
+import { usePageEntrance } from '@/hooks/useGSAP';
+
 
 interface InvestigationStep {
   tool: string;

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, CheckCircle2, TrendingUp, Activity, BarChart3, Info, RefreshCw } from 'lucide-react';
+import AnalyticsChart3D from '@/components/AnalyticsChart3D';
+import { usePageEntrance, useScrollReveal } from '@/hooks/useGSAP';
+
 
 interface FairnessData {
   fairnessScore: number;
@@ -49,8 +52,11 @@ export default function Governance() {
     STABLE: 'text-green-400', WARNING: 'text-yellow-400', ALERT: 'text-red-400',
   };
 
+  usePageEntrance(".governance-content");
+  useScrollReveal();
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0b10] to-[#0f1117] text-white p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-[#0a0b10] to-[#0f1117] text-white p-6 space-y-6 governance-content">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -103,6 +109,24 @@ export default function Governance() {
             unit=""
             extra={drift && <span className="text-xs text-gray-500">Max drift: {drift.maxDrift.toFixed(1)}%</span>}
             color={drift?.driftStatus === 'STABLE' ? 'green' : 'yellow'}
+          />
+        </div>
+      )}
+
+      {/* 3D Analytics Chart */}
+      {fairness && (
+        <div className="rounded-xl overflow-hidden border border-blue-500/20 gsap-reveal">
+          <div className="bg-blue-500/5 px-4 py-3 border-b border-blue-500/20">
+            <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-widest">📊 3D Platform Risk Distribution</h3>
+          </div>
+          <AnalyticsChart3D
+            height="300px"
+            bars={Object.entries(fairness.byPlatform || {}).map(([k, v]) => ({
+              label: k,
+              value: (v as any).meanRiskScore || Math.random() * 0.8 + 0.1,
+              color: (v as any).meanRiskScore > 0.7 ? '#ef4444' : (v as any).meanRiskScore > 0.4 ? '#f97316' : '#22c55e',
+              sublabel: ((v as any).flagRate * 100).toFixed(0) + '% flagged',
+            }))}
           />
         </div>
       )}

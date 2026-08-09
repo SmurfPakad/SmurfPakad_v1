@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, AlertTriangle, TrendingUp, Users, Loader2, ShieldAlert, Crosshair, ChevronRight } from "lucide-react";
+import { Activity, AlertTriangle, TrendingUp, Users, Loader2, ShieldAlert, Crosshair, ChevronRight, Brain, Lock, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import ThreeBackground from "@/components/ThreeBackground";
 import CrossPlatformGraph from "@/components/CrossPlatformGraph";
+import FloatingRiskOrbs3D from "@/components/FloatingRiskOrbs3D";
 import { dashboardApi, uploadApi, type Upload } from "@/lib/api";
+import { usePageEntrance, useStaggerCards, useCountUp } from "@/hooks/useGSAP";
 
 interface DashboardStats {
   totalTransactions: number;
@@ -22,6 +24,9 @@ export default function Dashboard() {
   const [recentUploads, setRecentUploads] = useState<Upload[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  usePageEntrance(".dashboard-content");
+  useStaggerCards(".stats-grid");
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -107,11 +112,38 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <ThreeBackground variant="cubes" />
-      <div className="space-y-8">
-        {/* Welcome section */}
-        <div className="rounded-xl p-6 border bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 dark:from-crypto-purple/20 dark:to-pink-600/20 dark:border-crypto-purple/30">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome back!</h2>
-          <p className="mt-1 text-gray-700 dark:text-gray-300">Here's what's happening with your AML monitoring today.</p>
+      <div className="space-y-8 dashboard-content">
+        {/* Welcome + 3D Risk Visualization */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
+          <div className="rounded-xl p-6 border bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 dark:from-crypto-purple/20 dark:to-pink-600/20 dark:border-crypto-purple/30">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs text-red-400 font-semibold uppercase tracking-widest">LIVE MONITORING</span>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">AML Intelligence Hub</h2>
+            <p className="mt-2 text-gray-700 dark:text-gray-300">Real-time cross-platform laundering detection across Paytm, PhonePe, and GPay networks.</p>
+            <div className="mt-4 flex gap-3">
+              <Link to="/cryptoflow/agent">
+                <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <Brain className="h-4 w-4 mr-2" /> AI Agent
+                </Button>
+              </Link>
+              <Link to="/cryptoflow/federated">
+                <Button size="sm" variant="outline" className="border-purple-500/40 text-purple-400">
+                  <Lock className="h-4 w-4 mr-2" /> Federated
+                </Button>
+              </Link>
+              <Link to="/cryptoflow/governance">
+                <Button size="sm" variant="outline" className="border-green-500/40 text-green-400">
+                  <Scale className="h-4 w-4 mr-2" /> Governance
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <div className="relative rounded-xl overflow-hidden border border-white/10">
+            <div className="absolute top-3 left-4 z-10 text-xs text-white/60 font-semibold uppercase tracking-widest">3D Risk Network</div>
+            <FloatingRiskOrbs3D height="300px" />
+          </div>
         </div>
 
         {/* Stats grid */}

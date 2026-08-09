@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Play, Loader2, Lock, Server, Database, ArrowRight, CheckCircle2, Shield, Zap } from 'lucide-react';
+import FederatedGlobe3D from '@/components/FederatedGlobe3D';
+import { usePageEntrance } from '@/hooks/useGSAP';
 
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -35,6 +37,8 @@ export default function FederatedDemo() {
   const [loading, setLoading] = useState(false);
   const [activeRound, setActiveRound] = useState(0);
 
+  usePageEntrance(".federated-content");
+
   const runSimulation = async () => {
     setLoading(true);
     setResult(null);
@@ -50,26 +54,42 @@ export default function FederatedDemo() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0b10] to-[#0f1117] text-white p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-b from-[#0a0b10] to-[#0f1117] text-white p-6 space-y-6 federated-content">
+      {/* Header + 3D Globe */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3">
-            <Server className="w-7 h-7 text-purple-400" />
-            Federated Learning Demo
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Privacy-preserving cross-bank AML training — each bank keeps its data, only gradients are shared
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-3">
+                <Server className="w-7 h-7 text-purple-400" />
+                Federated Learning Demo
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Privacy-preserving cross-bank AML training — each bank keeps its data, only gradients are shared
+              </p>
+            </div>
+            <button
+              onClick={runSimulation}
+              disabled={loading}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 text-sm font-medium shadow-lg shadow-purple-600/20 transition-all"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {loading ? 'Training...' : 'Run Simulation'}
+            </button>
+          </div>
+          {/* Privacy badges */}
+          <div className="flex flex-wrap gap-2">
+            {['FedAvg Algorithm', '(ε=1.0, δ=1e-5)-DP', 'GDPR Article 5(1)(c)', 'Zero Data Exposure'].map(badge => (
+              <span key={badge} className="px-3 py-1 text-xs rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300">{badge}</span>
+            ))}
+          </div>
         </div>
-        <button
-          onClick={runSimulation}
-          disabled={loading}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 text-sm font-medium shadow-lg shadow-purple-600/20 transition-all"
-        >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          {loading ? 'Training...' : 'Run Simulation'}
-        </button>
+        <div className="relative rounded-xl overflow-hidden border border-purple-500/20">
+          <div className="absolute top-3 left-4 z-10 text-xs text-purple-300 font-semibold uppercase tracking-widest">
+            {loading ? '🔄 Training in progress...' : '3D Federation Model'}
+          </div>
+          <FederatedGlobe3D height="280px" isTraining={loading} />
+        </div>
       </div>
 
       {/* The Story Card */}
