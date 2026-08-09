@@ -3,7 +3,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, TrendingUp, Users, Clock, Brain, Link as LinkIcon, Activity, CheckCircle, Loader2 } from "lucide-react";
+import { AlertTriangle, TrendingUp, Users, Clock, Brain, Link as LinkIcon, Activity, CheckCircle, Loader2, ChevronLeft } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -86,8 +87,13 @@ export default function Analysis() {
       <div className="space-y-8">
         {/* Header */}
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Analysis Results</h2>
-          <p className="text-gray-600 mt-1">AI-powered pattern detection and risk assessment</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+            <button onClick={() => window.history.back()} className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
+              <ChevronLeft className="w-7 h-7" />
+            </button>
+            Analysis Results
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 ml-10">AI-powered pattern detection and risk assessment</p>
         </div>
 
         {isLoading && (

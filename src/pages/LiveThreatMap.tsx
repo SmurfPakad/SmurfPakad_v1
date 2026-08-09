@@ -360,43 +360,80 @@ export default function LiveThreatMap() {
     return () => clearInterval(interval);
   }, []);
 
-  // WebSocket connection for live alerts
+  // WebSocket / demo live alerts
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
-    if (!token) return;
 
-    const apiBase =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-    const wsUrl = apiBase.replace("http", "ws");
-    const ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
+    if (token) {
+      // ── Real WebSocket path ──────────────────────────────────────────────
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+      const wsUrl = apiBase.replace("http", "ws");
+      const ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
 
-    ws.onopen = () => {
-      setWsConnected(true);
-      // Subscribe to safeguard alerts
-      ws.send(JSON.stringify({ type: "subscribe", resourceId: "safeguard" }));
-    };
+      ws.onopen = () => {
+        setWsConnected(true);
+        ws.send(JSON.stringify({ type: "subscribe", resourceId: "safeguard" }));
+      };
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "safeguard_alert" && msg.data) {
+            setAlerts((prev) => [msg.data, ...prev].slice(0, 50));
+            safeguardApi.getStats().then((d) => setStats({
+              totalChecks:       Number(d?.totalChecks       ?? 0) || 0,
+              totalFlagged:      Number(d?.totalFlagged      ?? 0) || 0,
+              flaggedRecipients: Number(d?.flaggedRecipients ?? 0) || 0,
+              flagRate:          Number(d?.flagRate          ?? 0) || 0,
+            })).catch(() => {});
+          }
+        } catch { /* ignore */ }
+      };
+      ws.onclose = () => setWsConnected(false);
+      ws.onerror = () => setWsConnected(false);
+      wsRef.current = ws;
+      return () => { ws.close(); };
+    }
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "safeguard_alert" && msg.data) {
-          setAlerts((prev) => [msg.data, ...prev].slice(0, 50));
-          // Refresh stats
-          safeguardApi.getStats().then(setStats).catch(() => {});
-        }
-      } catch {
-        // ignore
-      }
-    };
+    // ── Demo mode — simulate live alerts without backend auth ────────────
+    setWsConnected(true); // show LIVE in demo
 
-    ws.onclose = () => setWsConnected(false);
-    ws.onerror = () => setWsConnected(false);
+    const MOCK_ALERTS: SafeguardAlert[] = [
+      { id: "a1",  severity: "critical", riskLevel: "critical", walletId: "mule_004@paytm",           message: "Critical: Smurfing cluster detected — ₹9,800 x14 to collector_001",    timestamp: new Date().toISOString() },
+      { id: "a2",  severity: "high",     riskLevel: "high",     walletId: "wallet_0175@crypto_btc",    message: "High: Rapid fan-out to 4 wallets within 90 seconds",                   timestamp: new Date(Date.now()-20000).toISOString() },
+      { id: "a3",  severity: "high",     riskLevel: "high",     walletId: "mule_006@paytm",            message: "High: Cross-platform transfer UPI→ETH detected (layering indicator)",  timestamp: new Date(Date.now()-55000).toISOString() },
+      { id: "a4",  severity: "medium",   riskLevel: "medium",   walletId: "wallet_0005@gpay",          message: "Medium: Transaction velocity spike — 18 txns in 5 minutes",            timestamp: new Date(Date.now()-120000).toISOString() },
+      { id: "a5",  severity: "critical", riskLevel: "critical", walletId: "collector_001@crypto_eth",  message: "Critical: Fan-in aggregation — 10 wallets → ₹38.5L collected",         timestamp: new Date(Date.now()-180000).toISOString() },
+      { id: "a6",  severity: "medium",   riskLevel: "medium",   walletId: "shell_co_3@upi_biz",        message: "Medium: Shell company structuring 8x₹9,500 over 2 hours",              timestamp: new Date(Date.now()-300000).toISOString() },
+      { id: "a7",  severity: "high",     riskLevel: "high",     walletId: "mule_008@paytm",            message: "High: FATF TR-05 triggered — threshold proximity ratio 0.96",          timestamp: new Date(Date.now()-400000).toISOString() },
+    ];
 
-    wsRef.current = ws;
+    // Show existing alerts immediately
+    setAlerts(MOCK_ALERTS);
 
-    return () => {
-      ws.close();
-    };
+    // Inject new random alert every 8s
+    let alertIdx = 0;
+    const LIVE_ALERT_POOL: SafeguardAlert[] = [
+      { id: "l1", severity: "critical", riskLevel: "critical", walletId: "dark_wallet@crypto_btc",  message: "🔴 LIVE: New critical wallet flagged — GNN score 96%",                timestamp: "" },
+      { id: "l2", severity: "high",     riskLevel: "high",     walletId: "rapid_mule_9@phonepe",    message: "🟠 LIVE: Rapid transfer pattern — 5 hops in 3 minutes",               timestamp: "" },
+      { id: "l3", severity: "medium",   riskLevel: "medium",   walletId: "structured_x@gpay",       message: "🟡 LIVE: Structuring alert — 6 sub-threshold payments detected",       timestamp: "" },
+      { id: "l4", severity: "critical", riskLevel: "critical", walletId: "mixer_exit_7@crypto_eth", message: "🔴 LIVE: Crypto mixer exit detected — cross-chain bridge activity",    timestamp: "" },
+    ];
+
+    const liveInterval = setInterval(() => {
+      const base = LIVE_ALERT_POOL[alertIdx % LIVE_ALERT_POOL.length];
+      const newAlert: SafeguardAlert = { ...base, id: `live_${Date.now()}`, timestamp: new Date().toISOString() };
+      setAlerts(prev => [newAlert, ...prev].slice(0, 50));
+      setStats(prev => ({
+        ...prev,
+        totalChecks:  prev.totalChecks + Math.floor(Math.random() * 4 + 1),
+        totalFlagged: prev.totalFlagged + (base.severity === "critical" ? 1 : 0),
+        flaggedRecipients: prev.flaggedRecipients + (base.severity !== "medium" ? 1 : 0),
+        flagRate: parseFloat(((prev.totalFlagged + 1) / (prev.totalChecks + 5) * 100).toFixed(2)),
+      }));
+      alertIdx++;
+    }, 8000);
+
+    return () => { clearInterval(liveInterval); };
   }, []);
 
   const criticalCount = alerts.filter(
