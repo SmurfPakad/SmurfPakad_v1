@@ -3,7 +3,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Calendar, Filter, Loader2, AlertTriangle } from "lucide-react";
+import { FileText, Download, Calendar, Filter, Loader2, AlertTriangle, ChevronLeft } from "lucide-react";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { reportsApi, uploadApi, type Report } from "@/lib/api";
@@ -115,8 +116,13 @@ export default function Reports() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900">Reports</h2>
-            <p className="text-gray-600 mt-1">Generate and download compliance reports</p>
+            <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <button onClick={() => window.history.back()} className="text-gray-400 hover:text-gray-700 transition-colors">
+                <ChevronLeft className="w-7 h-7" />
+              </button>
+              Reports
+            </h2>
+            <p className="text-gray-600 mt-1 ml-10">Generate and download compliance reports</p>
           </div>
         </div>
 
