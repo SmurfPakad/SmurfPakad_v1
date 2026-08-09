@@ -9,8 +9,11 @@ export default function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    const errorParam = searchParams.get('error');
+    // Google Implicit Flow returns parameters in the URL hash, e.g. #access_token=123&token_type=Bearer
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const token = params.get('access_token');
+    const errorParam = params.get('error') || searchParams.get('error');
 
     if (errorParam) {
       setError(`OAuth Error: ${errorParam}`);
@@ -18,16 +21,16 @@ export default function AuthCallback() {
       return;
     }
 
-    if (!code) {
-      setError('No authorization code received');
+    if (!token) {
+      setError('No authorization token received');
       setTimeout(() => navigate('/cryptoflow'), 3000);
       return;
     }
 
-    // Exchange the code for tokens
+    // Use the token to fetch user profile
     const handleCallback = async () => {
       try {
-        const response = await authApi.handleCallback(code, 'google');
+        const response = await authApi.handleCallback(token, 'google');
         
         // Store auth data - backend returns user object with name, email, avatar
         const userData = {
