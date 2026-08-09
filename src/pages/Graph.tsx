@@ -54,6 +54,13 @@ export default function Graph() {
     fetchUploads();
   }, [uploadIdParam]);
 
+  // Auto-fetch graph data when uploadId is in URL
+  useEffect(() => {
+    if (uploadIdParam && selectedUploadId === uploadIdParam) {
+      fetchGraphData();
+    }
+  }, [uploadIdParam, selectedUploadId, fetchGraphData]);
+
   // Fetch graph data - only when explicitly triggered by button click
   const fetchGraphData = useCallback(async () => {
     if (!selectedUploadId) {

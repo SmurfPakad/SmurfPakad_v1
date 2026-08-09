@@ -143,19 +143,19 @@ function AlertItem({ alert, index }: { alert: SafeguardAlert; index: number }) {
               {platformIcons[alert.platform] || platformIcons.unknown}
             </span>
             <span className="font-semibold text-white truncate text-sm">
-              {alert.recipient.length > 24
-                ? alert.recipient.slice(0, 24) + "..."
-                : alert.recipient}
+              {(alert.recipient || alert.walletId || "Unknown").length > 24
+                ? (alert.recipient || alert.walletId || "Unknown").slice(0, 24) + "..."
+                : (alert.recipient || alert.walletId || "Unknown")}
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <span className="font-mono font-bold text-white">
-              ₹{alert.amount.toLocaleString()}
+              ₹{(alert.amount ?? 0).toLocaleString()}
             </span>
             <span className="capitalize">{alert.platform}</span>
             <span>{timeDiff()}</span>
           </div>
-          {alert.reasons.length > 0 && (
+          {alert.reasons && alert.reasons.length > 0 && (
             <p className="text-xs text-gray-400 mt-1.5 line-clamp-1">
               {alert.reasons[0]}
             </p>

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -155,6 +155,13 @@ export default function Upload() {
   const handleAnalysisComplete = (results: any) => {
     console.log('Analysis complete:', results);
   };
+
+  // Auto-navigate to analysis page after upload completes
+  useEffect(() => {
+    if (uploadComplete && uploadResult?.id) {
+      navigate(`/cryptoflow/analysis?uploadId=${uploadResult.id}`);
+    }
+  }, [uploadComplete, uploadComplete, uploadResult, navigate]);
 
   return (
     <DashboardLayout>

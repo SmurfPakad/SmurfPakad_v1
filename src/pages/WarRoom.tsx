@@ -27,6 +27,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ibmAiApi, type AnalystBrief } from "@/lib/api";
+import { jsPDF } from "jspdf";
+import { toast } from "@/components/ToastNotification";
 
 // ============================================================================
 // Types
@@ -475,6 +477,180 @@ export default function WarRoom() {
     }
   }, [selectedNode]);
 
+  // Generate FIU-IND SAR PDF
+  const [sarGenerating, setSarGenerating] = useState(false);
+
+  const handleGenerateSAR = useCallback(async () => {
+    if (!selectedNode) return;
+
+    setSarGenerating(true);
+
+    try {
+      const doc = new jsPDF();
+      const walletId = selectedNode.id;
+      const riskScore = (selectedNode.riskScore * 100).toFixed(1);
+      const riskLevel = selectedNode.riskLevel.toUpperCase();
+      const timestamp = new Date().toISOString().split('T')[0];
+      const brief = analystBrief;
+
+      // FIU-IND SAR Template
+      let y = 15;
+      const lineHeight = 6;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+
+      // Helper functions
+      const addHeader = (text: string, size = 14, bold = true) => {
+        doc.setFontSize(size);
+        doc.setFont(bold ? "helvetica" : "helvetica", bold ? "bold" : "normal");
+        doc.text(text, margin, y);
+        y += lineHeight + 2;
+      };
+
+      const addField = (label: string, value: string, size = 10) => {
+        doc.setFontSize(size);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${label}:`, margin, y);
+        doc.setFont("helvetica", "normal");
+        const labelWidth = doc.getTextWidth(`${label}:`) + 2;
+        doc.text(value, margin + labelWidth, y);
+        y += lineHeight;
+      };
+
+      const addSection = (title: string) => {
+        y += 4;
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(title, margin, y);
+        y += lineHeight;
+        // Draw line
+        doc.setDrawColor(139, 92, 246);
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 4;
+      };
+
+      // ============ HEADER ============
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(139, 92, 246);
+      doc.text("SUSPICIOUS ACTIVITY REPORT (SAR)", margin, y);
+      y += 10;
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(150, 150, 150);
+      doc.text("FIU-IND Compliant Format | Powered by IBM watsonx.ai + SmurfPakad GATv2", margin, y);
+      y += 10;
+
+      doc.setDrawColor(139, 92, 246);
+      doc.setLineWidth(0.8);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 8;
+
+      // ============ ENTITY DETAILS ============
+      addSection("1. REPORTING ENTITY & WALLET IDENTITY");
+      addField("Reporting Entity", "SmurfPakad AML Platform");
+      addField("Wallet ID", walletId);
+      addField("Risk Classification", riskLevel);
+      addField("GATv2 Suspicion Score", `${riskScore}%`);
+      addField("Report Date", timestamp);
+      addField("Report Reference", `SAR-${walletId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}-${Date.now().toString(36).toUpperCase()}`);
+
+      // ============ SUSPICIOUS ACTIVITY ============
+      addSection("2. SUSPICIOUS ACTIVITY SUMMARY");
+      const patterns = selectedNode.patterns || [];
+      if (patterns.length > 0) {
+        patterns.forEach((p: any, idx: number) => {
+          addField(`${idx + 1}. ${p.type.toUpperCase()}`, `${p.description} (Severity: ${p.severity})`);
+        });
+      } else {
+        addField("No structured patterns detected", "Node exhibits anomalous transaction behavior warranting investigation");
+      }
+
+      // ============ GRAPH METRICS ============
+      addSection("3. NETWORK TOPOLOGY ANALYSIS");
+      const metrics = selectedNode.graphMetrics || {};
+      addField("In-Degree (Fan-in)", String(metrics.in_degree || 0));
+      addField("Out-Degree (Fan-out)", String(metrics.out_degree || 0));
+      addField("Total Connections", String(metrics.total_connections || 0));
+      addField("Position in Cluster", metrics.in_degree > 2 && metrics.out_degree > 2 ? "Mule / Intermediary" : metrics.in_degree > 2 ? "Aggregator / Collector" : "Source / Peripheral");
+
+      // ============ FEATURE IMPORTANCE (XAI) ============
+      addSection("4. EXPLAINABLE AI - FEATURE IMPORTANCE (GATv2)");
+      const fi = selectedNode.featureImportance || [];
+      if (fi.length > 0) {
+        fi.slice(0, 8).forEach((f: any) => {
+          addField(f.feature_name, `${(f.importance * 100).toFixed(1)}%`, 9);
+        });
+      } else {
+        addField("Model features", "Standard GATv2 attention weights applied");
+      }
+
+      // ============ IBM WATSONX.AI ANALYST BRIEF ============
+      if (brief) {
+        addSection("5. IBM WATSONX.AI ANALYST BRIEF (granite-3-8b-instruct)");
+        const briefText = brief.brief || brief.summary || "AI-generated narrative available in War Room";
+        // Wrap long text
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        const lines = doc.splitTextToSize(briefText, pageWidth - 2 * margin);
+        lines.forEach((line: string) => {
+          if (y > 270) { doc.addPage(); y = 15; }
+          doc.text(line, margin, y);
+          y += 5;
+        });
+        y += 4;
+      }
+
+      // ============ FATF TYPOLOGY FLAGS ============
+      if (brief?.fatf_flags && brief.fatf_flags.length > 0) {
+        addSection("6. FATF TYPOLOGY FLAGS");
+        brief.fatf_flags.forEach((flag: any, idx: number) => {
+          const text = typeof flag === 'object' ? `${flag.rule}: ${flag.description}` : String(flag);
+          addField(`${idx + 1}.`, text, 9);
+        });
+      }
+
+      // ============ RECOMMENDED ACTION ============
+      addSection("7. RECOMMENDED ACTION");
+      const action = brief?.summary?.recommended_action || 
+        (riskLevel === "CRITICAL" ? "FILE_SAR" : riskLevel === "HIGH" ? "ESCALATE" : "MONITOR");
+      const actionMap: Record<string, string> = {
+        "FILE_SAR": "FILE SAR with FIU-IND within 7 days. Freeze wallet under PMLA 2002.",
+        "ESCALATE": "Escalate to AML Compliance Officer for enhanced due diligence.",
+        "MONITOR": "Continue monitoring. Review again in 30 days.",
+      };
+      addField("Action Code", action);
+      addField("Rationale", actionMap[action] || "Based on GATv2 risk scoring and pattern detection");
+
+      // ============ FOOTER ============
+      y += 10;
+      doc.setDrawColor(139, 92, 246);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 5;
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(150, 150, 150);
+      doc.text("This report is generated by SmurfPakad AML Platform using TG-GATv2 (Temperature-Gated GATv2) Graph Neural Network.", margin, y);
+      y += 5;
+      doc.text("IBM watsonx.ai (granite-3-8b-instruct) provided analyst narrative. All risk scores are model-derived probabilities.", margin, y);
+      y += 5;
+      doc.text(`Generated: ${new Date().toISOString()} | Classification: CONFIDENTIAL - AML USE ONLY`, margin, y);
+
+      // Save
+      doc.save(`SAR_${walletId.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20)}_${timestamp}.pdf`);
+      toast.success("SAR PDF generated and downloaded successfully!");
+    } catch (err) {
+      console.error("SAR generation failed:", err);
+      toast.error("Failed to generate SAR PDF");
+    } finally {
+      setSarGenerating(false);
+    }
+  }, [selectedNode, analystBrief]);
+
   const maxImportance =
     selectedNode?.featureImportance?.[0]?.importance || 1;
 
@@ -520,9 +696,15 @@ export default function WarRoom() {
               <Button
                 variant="outline"
                 className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+                onClick={handleGenerateSAR}
+                disabled={sarGenerating}
               >
-                <Download className="h-4 w-4 mr-2" />
-                Generate SAR
+                {sarGenerating ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {sarGenerating ? "Generating..." : "Generate SAR"}
               </Button>
             </div>
           )}

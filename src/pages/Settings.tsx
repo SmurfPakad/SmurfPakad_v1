@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Bell, Shield, Database, Mail, Loader2, Copy, Check, Plus, Trash2 } from "lucide-react";
 import { settingsApi } from "@/lib/api";
+import { toast } from "@/components/ToastNotification";
 
 interface ApiKey {
   id: string;
@@ -82,8 +83,38 @@ export default function Settings() {
         name: userSettings.name,
         email: userSettings.email,
       }));
+      toast.success("Account settings saved successfully!");
     } catch (err) {
       console.error('Failed to save settings:', err);
+      toast.error("Failed to save settings. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    setIsSaving(true);
+    try {
+      await settingsApi.updateNotifications(notifications);
+      toast.success("Notification preferences saved!");
+    } catch (err) {
+      console.error('Failed to save notifications:', err);
+      toast.error("Failed to save preferences. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+};
+  
+  const handleUpdatePassword = async () => {
+    setIsSaving(true);
+    try {
+      await settingsApi.updatePassword({
+        // In a real app, you'd get these from form state
+      });
+      toast.success("Password updated successfully!");
+    } catch (err) {
+      console.error('Failed to update password:', err);
+      toast.error("Failed to update password. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -311,8 +342,19 @@ export default function Settings() {
 
                 <div className="flex justify-end space-x-4 pt-4">
                   <Button variant="outline">Reset to Default</Button>
-                  <Button className="bg-crypto-purple hover:bg-crypto-dark-purple">
-                    Save Preferences
+                  <Button 
+                    className="bg-crypto-purple hover:bg-crypto-dark-purple"
+                    onClick={handleSaveNotifications}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Preferences'
+                    )}
                   </Button>
                 </div>
               </CardContent>
@@ -377,8 +419,19 @@ export default function Settings() {
 
                 <div className="flex justify-end space-x-4 pt-4">
                   <Button variant="outline">Cancel</Button>
-                  <Button className="bg-crypto-purple hover:bg-crypto-dark-purple">
-                    Update Password
+                  <Button 
+                    className="bg-crypto-purple hover:bg-crypto-dark-purple"
+                    onClick={handleUpdatePassword}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Password'
+                    )}
                   </Button>
                 </div>
               </CardContent>

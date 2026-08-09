@@ -75,13 +75,20 @@ export default function Reports() {
     }
   };
 
-  const handleDownloadReport = async (reportId: string, filename: string) => {
+  const handleDownloadReport = async (reportId: string, reportFormat?: string, filename?: string) => {
     try {
       const blob = await reportsApi.downloadReport(reportId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename || `report_${reportId}.pdf`;
+      
+      // Ensure filename has correct extension based on report format
+      const ext = reportFormat?.toLowerCase() === 'excel' ? 'xlsx' : 
+                  reportFormat?.toLowerCase() === 'csv' ? 'csv' : 
+                  reportFormat?.toLowerCase() === 'json' ? 'json' : 'pdf';
+      const safeFilename = filename || `report_${reportId}.${ext}`;
+      a.download = safeFilename.endsWith(`.${ext}`) ? safeFilename : `${safeFilename}.${ext}`;
+      
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -329,7 +336,7 @@ export default function Reports() {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleDownloadReport(report.id, `${report.report_type}_report.${report.format}`)}
+                                onClick={() => handleDownloadReport(report.id, report.format, `${report.report_type}_report.${report.format}`)}
                               >
                                 <Download className="h-4 w-4 mr-2" />
                                 Download

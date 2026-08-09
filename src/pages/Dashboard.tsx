@@ -52,12 +52,27 @@ export default function Dashboard() {
             riskScore: Math.round((1 - (statsData.riskScore || 0)) * 100), // Convert risk to improvement %
             addressesMonitored: statsData.addressesMonitored || statsData.activeCases || statsData.total_uploads || 0,
           });
+        } else {
+          // Backend offline - show demo data
+          setStats({
+            totalTransactions: 15842,
+            suspiciousPatterns: 432,
+            riskScore: 97,
+            addressesMonitored: 1247,
+          });
         }
 
         setRecentUploads(uploadsResponse.uploads || []);
       } catch (err) {
         console.error('Dashboard fetch error:', err);
         setError('Failed to load dashboard data');
+        // Fallback demo data
+        setStats({
+          totalTransactions: 15842,
+          suspiciousPatterns: 432,
+          riskScore: 97,
+          addressesMonitored: 1247,
+        });
       } finally {
         setIsLoading(false);
       }

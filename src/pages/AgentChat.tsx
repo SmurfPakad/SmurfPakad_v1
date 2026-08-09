@@ -254,12 +254,16 @@ export default function AgentChat() {
         ));
       }
     } catch (error) {
+      console.error('Agent error:', error);
+      // Ensure loading state is cleared on error
       setMessages(prev => prev.map(m =>
         m.id === loadingMsg.id
           ? { ...m, content: '⚠️ Agent error. Backend may be offline. Try again.', isLoading: false }
           : m
       ));
+      setIsLoading(false);
     } finally {
+      // Double-ensure loading is reset
       setIsLoading(false);
     }
   };

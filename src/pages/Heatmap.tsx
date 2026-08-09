@@ -206,14 +206,14 @@ export default function Heatmap() {
   const getHeatmapColor = (value: number, intensity: number = 70) => {
     const adjustedValue = Math.pow(value, 1 / (intensity / 50));
     
+    // Standardized thresholds matching Graph component (UltraGraphVisualization)
+    // Graph thresholds: >= 0.8 = Critical/High (red), >= 0.5 = High/Medium (orange), < 0.5 = Low (green)
     if (adjustedValue >= 0.8) {
-      return `rgba(239, 68, 68, ${0.3 + adjustedValue * 0.7})`; // Red
+      return `rgba(239, 68, 68, ${0.4 + adjustedValue * 0.6})`; // Red #ef4444
     } else if (adjustedValue >= 0.5) {
-      return `rgba(245, 158, 11, ${0.3 + adjustedValue * 0.7})`; // Amber
-    } else if (adjustedValue >= 0.3) {
-      return `rgba(234, 179, 8, ${0.3 + adjustedValue * 0.6})`; // Yellow
+      return `rgba(245, 158, 11, ${0.4 + adjustedValue * 0.6})`; // Amber/Orange #f59e0b
     } else if (adjustedValue > 0) {
-      return `rgba(34, 197, 94, ${0.2 + adjustedValue * 0.5})`; // Green
+      return `rgba(16, 185, 129, ${0.3 + adjustedValue * 0.6})`; // Green #10b981
     }
     return 'rgba(100, 116, 139, 0.1)'; // Gray for empty
   };
@@ -421,16 +421,12 @@ export default function Heatmap() {
                     {/* Legend */}
                     <div className="flex items-center justify-center gap-6 mt-6">
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(34, 197, 94, 0.5)' }} />
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(16, 185, 129, 0.5)' }} />
                         <span className="text-sm text-gray-600 dark:text-gray-400">Low Risk</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(234, 179, 8, 0.6)' }} />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Medium</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(245, 158, 11, 0.8)' }} />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">High</span>
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(245, 158, 11, 0.6)' }} />
+                        <span className="text-sm text-gray-600 dark:text-gray-400">High Risk</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(239, 68, 68, 0.9)' }} />

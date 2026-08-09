@@ -1,3 +1,5 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+
 /**
  * SmurfPakad API Client
  * =====================
@@ -193,6 +195,17 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
+export const api = {
+  get: <T>(endpoint: string, options: RequestInit = {}) => 
+    fetch(`${API_V1}${endpoint}`, { ...options, headers: getAuthHeaders(), method: 'GET' }).then(r => r.ok ? r.json() : Promise.reject(r)),
+  post: <T>(endpoint: string, body: any, options: RequestInit = {}) => 
+    fetch(`${API_V1}${endpoint}`, { ...options, headers: getAuthHeaders(), method: 'POST', body: JSON.stringify(body) }).then(r => r.ok ? r.json() : Promise.reject(r)),
+  put: <T>(endpoint: string, body: any, options: RequestInit = {}) => 
+    fetch(`${API_V1}${endpoint}`, { ...options, headers: getAuthHeaders(), method: 'PUT', body: JSON.stringify(body) }).then(r => r.ok ? r.json() : Promise.reject(r)),
+  delete: <T>(endpoint: string, options: RequestInit = {}) => 
+    fetch(`${API_V1}${endpoint}`, { ...options, headers: getAuthHeaders(), method: 'DELETE' }).then(r => r.ok ? r.json() : Promise.reject(r)),
+};
+
 async function tryFetch<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 4000): Promise<T | null> {
   try {
     const controller = new AbortController();
@@ -314,6 +327,87 @@ const MOCK_ADDRESSES: SuspiciousAddress[] = [
   { address: 'wallet_0175@crypto_btc',   riskScore: 0.81, riskLevel: 'high',     transactionCount: 8,  totalAmount: 78500.00,   flags: ['Layering Source'] },
 ];
 
+// Generate deterministic mock data seeded by uploadId for variation
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+function generateSeededMockData(uploadId: string) {
+  const seed = hashString(uploadId);
+  const rand = (max: number) => (seed * 16807) % 2147483647 % max;
+  
+  const patternTypes = ['Smurfing / Structuring', 'Layering Network', 'Fan-in / Collection', 'Rapid Movement', 'Circular Flow', 'Threshold Evasion'];
+  const severities: Array<'High' | 'Medium' | 'Low'> = ['High', 'Medium', 'Low'];
+  const walletPrefixes = ['wallet', 'mule', 'collector', 'aggregator', 'source', 'dst'];
+  const platforms = ['paytm', 'phonepe', 'gpay', 'crypto_eth', 'crypto_btc', 'bhim'];
+  
+  const patternCount = 2 + (seed % 3); // 2-4 patterns
+  const patterns: Pattern[] = [];
+  
+  for (let i = 0; i < patternCount; i++) {
+    const typeIdx = (seed + i * 7) % patternTypes.length;
+    const sevIdx = (seed + i * 11) % severities.length;
+    const txnCount = 8 + ((seed + i * 13) % 40);
+    const conf = 0.7 + ((seed + i * 17) % 30) / 100;
+    
+    const addrCount = 2 + ((seed + i * 19) % 4);
+    const addresses: string[] = [];
+    for (let j = 0; j < addrCount; j++) {
+      const prefix = walletPrefixes[(seed + i * 23 + j * 5) % walletPrefixes.length];
+      const platform = platforms[(seed + i * 29 + j * 7) % platforms.length];
+      const num = 100 + ((seed + i * 31 + j * 11) % 900);
+      addresses.push(`${prefix}_${num.toString().padStart(3, '0')}@${platform}`);
+    }
+    
+    patterns.push({
+      id: `pat_${uploadId.slice(0,8)}_${i}`,
+      type: patternTypes[typeIdx],
+      description: `${patternTypes[typeIdx]} detected with ${txnCount} transactions across ${addrCount} wallets.`,
+      severity: severities[sevIdx],
+      confidence: conf,
+      transactions: txnCount,
+      addresses,
+      detectedAt: new Date(Date.now() - (seed + i) * 3600000).toISOString(),
+    });
+  }
+  
+  const addrCount = 3 + (seed % 3);
+  const mockAddresses: SuspiciousAddress[] = [];
+  
+  for (let i = 0; i < addrCount; i++) {
+    const riskScore = 0.65 + ((seed + i * 37) % 35) / 100;
+    const prefix = walletPrefixes[(seed + i * 41) % walletPrefixes.length];
+    const platform = platforms[(seed + i * 43) % platforms.length];
+    const num = 100 + ((seed + i * 47) % 900);
+    const address = `${prefix}_${num.toString().padStart(3, '0')}@${platform}`;
+    
+    let riskLevel: 'critical' | 'high' | 'medium' | 'low' = 'low';
+    if (riskScore >= 0.9) riskLevel = 'critical';
+    else if (riskScore >= 0.75) riskLevel = 'high';
+    else if (riskScore >= 0.5) riskLevel = 'medium';
+    
+    const flagOptions = ['Structuring', 'Rapid Transfer', 'High Volume', 'Offshore', 'Fan-in', 'Fan-out', 'Layering Source', 'Cross-platform', 'Velocity Spike'];
+    const flags = flagOptions.slice(0, 1 + (seed + i) % 3);
+    
+    mockAddresses.push({
+      address,
+      riskScore,
+      riskLevel,
+      transactionCount: 5 + ((seed + i * 53) % 50),
+      totalAmount: 50000 + ((seed + i * 59) % 5000000),
+      flags,
+    });
+  }
+  
+  return { patterns, addresses: mockAddresses };
+}
+
 export const analysisApi = {
   run: async (uploadId: string) => {
     const real = await tryFetch<any>(`/analysis/${uploadId}/run`, { method: 'POST' });
@@ -323,6 +417,8 @@ export const analysisApi = {
     if (uploadId) {
       const real = await tryFetch<{ patterns: Pattern[] } | Pattern[]>(`/analysis/${uploadId}/patterns`);
       if (real) return Array.isArray(real) ? real : (real as any).patterns || [];
+      // Return seeded mock data for this uploadId
+      return generateSeededMockData(uploadId).patterns;
     }
     return MOCK_PATTERNS;
   },
@@ -330,6 +426,8 @@ export const analysisApi = {
     if (uploadId) {
       const real = await tryFetch<{ addresses: SuspiciousAddress[] }>(`/analysis/${uploadId}/suspicious`);
       if (real) return real;
+      // Return seeded mock data for this uploadId
+      return { addresses: generateSeededMockData(uploadId).addresses };
     }
     return { addresses: MOCK_ADDRESSES };
   },
@@ -632,4 +730,50 @@ export function createWebSocketConnection(
   ws.onclose = () => onClose?.();
   ws.onerror = (e) => onError?.(e);
   return ws;
+}
+
+export type WSMessage = 
+  | { type: 'upload_progress'; uploadId: string; progress: number; status: string; message?: string }
+  | { type: 'analysis_update'; uploadId: string; status: string; data?: any }
+  | { type: 'safeguard_alert'; data: any }
+  | { type: 'analysis_stream'; uploadId: string; stage: string; progress: number; data?: any }
+  | { type: 'attack_simulation'; event: any };
+
+export function useWebSocket(onMessage?: (msg: WSMessage) => void) {
+  const socketRef = useRef<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    const wsUrl = API_BASE.replace('http', 'ws');
+    const ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
+
+    ws.onopen = () => {
+      setConnected(true);
+      ws.send(JSON.stringify({ type: 'subscribe', channels: ['upload-progress', 'analysis-updates', 'safeguard', 'analysis-stream', 'attack-simulation'] }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data) as WSMessage;
+        setLastMessage(msg);
+        onMessage?.(msg);
+      } catch { console.warn('Invalid WS message'); }
+    };
+
+    ws.onclose = () => setConnected(false);
+    ws.onerror = () => setConnected(false);
+
+    socketRef.current = ws;
+
+    return () => {
+      ws.close();
+      socketRef.current = null;
+    };
+  }, [onMessage]);
+
+  return { connected, lastMessage };
 }

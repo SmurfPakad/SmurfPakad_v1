@@ -143,6 +143,9 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   // WebSocket for real-time updates
   useWebSocket(useCallback((msg) => {
     if (msg.type === 'analysis_stream' && msg.uploadId === uploadId) {
+      // Mark that we're receiving real backend messages
+      setReceivedRealMessage(true);
+      
       const stage = msg.stage;
       const prog = msg.progress;
       
@@ -190,9 +193,22 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
     }
   }, [uploadId, onComplete]));
 
-  // Auto-advance through stages for demo mode
+  // Track WebSocket connection status
   useEffect(() => {
-    if (isComplete) return;
+    // The useWebSocket hook doesn't expose connection status directly
+    // We'll infer it from receiving messages
+    const checkConnection = setInterval(() => {
+      // If we've received a real message, WebSocket is working
+      if (receivedRealMessage) {
+        setWsConnected(true);
+      }
+    }, 1000);
+    return () => clearInterval(checkConnection);
+  }, [receivedRealMessage]);
+
+  // Auto-advance through stages for demo mode (only when NO real WebSocket messages)
+  useEffect(() => {
+    if (isComplete || wsConnected || receivedRealMessage) return;
     
     const stageOrder = STAGES.map(s => s.id);
     const currentIndex = stageOrder.indexOf(currentStage);
@@ -204,13 +220,17 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
     const targetProgress = STAGES[currentIndex + 1] ? 
       (currentIndex + 1) * 100 / (STAGES.length - 1) : 100;
     
-    const timer = setTimeout(() => {
+    autoAdvanceTimerRef.current = setTimeout(() => {
       setCurrentStage(nextStage);
       setProgress(targetProgress);
     }, 3000 + Math.random() * 2000);
     
-    return () => clearTimeout(timer);
-  }, [currentStage, isComplete]);
+    return () => {
+      if (autoAdvanceTimerRef.current) {
+        clearTimeout(autoAdvanceTimerRef.current);
+      }
+    };
+  }, [currentStage, isComplete, wsConnected, receivedRealMessage]);
 
   // Initialize graph with demo data immediately
   useEffect(() => {
