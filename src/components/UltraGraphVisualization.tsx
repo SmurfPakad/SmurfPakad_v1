@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import ForceGraph3D from 'react-force-graph-3d';
 import { Card } from './ui/card';
@@ -1369,4 +1369,5 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   );
 };
 
-export default UltraGraphVisualization;
+
+export default memo(UltraGraphVisualization);
