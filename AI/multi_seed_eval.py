@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from torch_geometric.loader import DataLoader
-from gatv2_conv import GATv2Conv
+from AI.gatv2_conv import GATv2Conv
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool, global_max_pool
