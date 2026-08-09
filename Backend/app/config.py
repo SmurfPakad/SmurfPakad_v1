@@ -59,8 +59,9 @@ class Settings(BaseSettings):
     def allowed_extensions_list(self) -> List[str]:
         return [ext.strip() for ext in self.ALLOWED_EXTENSIONS.split(",") if ext.strip()]
     
-    # ML Model
-    MODEL_PATH: str = "../AI/ML/smurf_hunter_model.pt"
+    # ML Model - points to best_model_tg.pt in AI/All_models/
+    MODEL_PATH: str = "../AI/All_models/best_model_tg.pt"
+    MODEL_DIR: str = "../AI/All_models"
     
     # IBM watsonx.ai
     IBM_WATSONX_API_KEY: Optional[str] = None

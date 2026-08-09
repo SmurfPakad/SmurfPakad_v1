@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Loader2, Shield, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronRight, Cpu, Zap, FileWarning, Globe, Brain } from 'lucide-react';
+import { Bot, Send, Loader2, Shield, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronRight, Cpu, Zap, FileWarning, Globe, Brain, ChevronLeft } from 'lucide-react';
 import { agentApi } from '@/lib/api';
 import { usePageEntrance } from '@/hooks/useGSAP';
 
@@ -277,6 +277,9 @@ export default function AgentChat() {
       <div className="flex-none px-6 py-4 border-b border-white/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button onClick={() => window.history.back()} className="text-gray-400 hover:text-white transition-colors">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Bot className="w-5 h-5 text-white" />
             </div>
