@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Network, Upload as UploadIcon, RefreshCw, Loader2, AlertTriangle, Download, Boxes } from "lucide-react";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import UltraGraphVisualization from "@/components/UltraGraphVisualization";
 import NetworkGraph3D from "@/components/NetworkGraph3D";
@@ -12,6 +12,67 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { toast } from "@/components/ToastNotification";
 import { usePageEntrance } from "@/hooks/useGSAP";
 
+
+interface UploadItem {
+  id: string;
+  name?: string;
+  filename?: string;
+  date?: string;
+  uploadedAt?: string;
+}
+
+// Transform backend graph data to match UltraGraphVisualization expected format
+function transformGraphData(backendData: GraphData): GraphData {
+  if (!backendData) return backendData;
+  
+  return {
+    ...backendData,
+    nodes: (backendData.nodes || []).map((node, index) => ({
+      ...node,
+      // Add label for display (use id as label if not present)
+      label: node.id || `node_${index}`,
+      // Add class based on predictedLabel or risk_level
+      class: node.predictedLabel === 'illicit' ? 'illicit' : 
+             node.risk_level === 'high' || node.riskLevel === 'high' ? 'illicit' : 
+             node.risk_level === 'medium' || node.riskLevel === 'medium' ? 'illicit' : 'licit',
+      // Mark seed nodes as top_k
+      top_k: node.isSeedNode === true,
+      // Ensure risk_level is lowercase
+      risk_level: (node.risk_level || node.riskLevel || 'low').toLowerCase(),
+      // Ensure suspicious_score is set
+      suspicious_score: node.suspicious_score || node.suspiciousScore || node.mlScore || 0,
+      // Add community (default to 1 if not present)
+      community: node.community ?? 1,
+      // Add placeholder centrality for visualization
+      centrality: node.centrality ?? {
+        pagerank: 0.01,
+        betweenness: 0.01,
+        closeness: 0.5,
+        degree: (node.degree?.in || 0) + (node.degree?.out || 0)
+      },
+      // Add timestamp if not present
+      timestamp: node.timestamp ?? Date.now() - Math.random() * 10000000000,
+    })),
+    edges: (backendData.edges || []).map(edge => ({
+      ...edge,
+      // Ensure weight is set
+      weight: edge.weight ?? 1,
+      // Ensure high_risk is set
+      high_risk: edge.high_risk ?? (edge.suspicious === true),
+      // Add flow direction
+      flow: edge.flow ?? 'outgoing',
+      timestamp: edge.timestamp ?? Date.now(),
+    })),
+    // Ensure summary exists
+    summary: backendData.summary ?? {
+      top_illicit_ratio: 0,
+      fan_out_nodes: 0,
+      fan_in_nodes: 0,
+      avg_suspicious_score: 0,
+      model_confidence: 'low'
+    }
+  };
+}
 
 export default function Graph() {
   const [searchParams] = useSearchParams();
@@ -27,7 +88,7 @@ export default function Graph() {
   const [selectedUploadId, setSelectedUploadId] = useState<string>(uploadIdParam || '');
   const [topK, setTopK] = useState(20);
   const [hop, setHop] = useState(2);
-  const [uploads, setUploads] = useState<any[]>([]);
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
   
   // Track if we've fetched uploads already
   const hasFetchedUploads = useRef(false);
@@ -43,7 +104,7 @@ export default function Graph() {
         setUploads(response.uploads || []);
         
         // Auto-select first upload if one is specified in URL
-        if (uploadIdParam && response.uploads?.some((u: any) => u.id === uploadIdParam)) {
+        if (uploadIdParam && response.uploads?.some((u: UploadItem) => u.id === uploadIdParam)) {
           setSelectedUploadId(uploadIdParam);
         }
       } catch (err) {
@@ -54,14 +115,6 @@ export default function Graph() {
     fetchUploads();
   }, [uploadIdParam]);
 
-// Auto-fetch graph data when uploadId is in URL
-  const hasAutoFetched = useRef(false);
-  useEffect(() => {
-    if (uploadIdParam && selectedUploadId === uploadIdParam && !hasAutoFetched.current) {
-      hasAutoFetched.current = true;
-      fetchGraphData();
-    }
-  }, [uploadIdParam, selectedUploadId, fetchGraphData]);
   const fetchGraphData = useCallback(async () => {
     if (!selectedUploadId) {
       setError('Please select an upload first');
@@ -73,16 +126,27 @@ export default function Graph() {
     
     try {
       const data = await graphApi.getSuspiciousSubgraph(selectedUploadId, topK, hop);
-      setGraphData(data);
+      // Transform backend data to match visualization component expectations
+      const transformedData = transformGraphData(data);
+      setGraphData(transformedData);
       setUseDemo(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch graph:', err);
-      setError(err.message || 'Failed to load graph data');
+      setError((err as Error).message || 'Failed to load graph data');
       // Keep existing data or demo mode
     } finally {
       setIsLoading(false);
     }
   }, [selectedUploadId, topK, hop]);
+
+  // Auto-fetch graph data when uploadId is in URL
+  const hasAutoFetched = useRef(false);
+  useEffect(() => {
+    if (uploadIdParam && selectedUploadId === uploadIdParam && !hasAutoFetched.current) {
+      hasAutoFetched.current = true;
+      fetchGraphData();
+    }
+  }, [uploadIdParam, selectedUploadId, fetchGraphData]);
 
   // Handle local file upload (fallback)
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {

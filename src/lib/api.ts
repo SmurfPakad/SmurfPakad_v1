@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-=======
->>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
 /**
  * SmurfPakad API Client
  * =====================
@@ -95,6 +92,13 @@ export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
   metadata?: { totalNodes: number; totalEdges: number; suspiciousCount: number };
+  summary?: {
+    top_illicit_ratio: number;
+    fan_out_nodes: number;
+    fan_in_nodes: number;
+    avg_suspicious_score: number;
+    model_confidence: string;
+  };
 }
 
 export interface Report {
@@ -192,13 +196,12 @@ const MOCK_UPLOADS: Upload[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('authToken');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
 }
 
-<<<<<<< HEAD
 export const api = {
   get: <T>(endpoint: string, options: RequestInit = {}) => 
     fetch(`${API_V1}${endpoint}`, { ...options, headers: getAuthHeaders(), method: 'GET' }).then(r => r.ok ? r.json() : Promise.reject(r)),
@@ -210,8 +213,6 @@ export const api = {
     fetch(`${API_V1}${endpoint}`, { ...options, headers: getAuthHeaders(), method: 'DELETE' }).then(r => r.ok ? r.json() : Promise.reject(r)),
 };
 
-=======
->>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
 async function tryFetch<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 4000): Promise<T | null> {
   try {
     const controller = new AbortController();
@@ -233,28 +234,30 @@ async function tryFetch<T>(endpoint: string, options: RequestInit = {}, timeoutM
 
 export const authApi = {
   getGoogleAuthUrl: async (): Promise<{ authorization_url: string }> => {
-    const real = await tryFetch<{ url: string }>('/auth/google');
-    if (real) return { authorization_url: (real as any).url };
+    const real = await tryFetch<{ authorization_url: string }>('/auth/google');
+    if (real) return real;
     const clientId = '341547498123-g9l1ichk7itcceh6g2ab6app7fb3s2t1.apps.googleusercontent.com';
     const redirectUri = encodeURIComponent(window.location.origin + '/cryptoflow/auth/callback');
     return { authorization_url: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${encodeURIComponent('email profile openid')}&prompt=select_account` };
   },
-  handleCallback: async (token: string, _provider = 'google') => {
-    try {
-      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const d = await res.json();
-        return { access_token: token, user: { id: d.sub, name: d.name, email: d.email, avatar: d.picture } as User };
-      }
-    } catch { /* fallback */ }
-    return { access_token: token, user: { id: 'demo', name: 'Demo User', email: 'demo@smurfpakad.ai' } as User };
+  handleCallback: async (code: string, _provider = 'google') => {
+    // Authorization Code Flow: send code to backend, backend exchanges for tokens
+    const res = await fetch(`${API_V1}/auth/google/callback?code=${encodeURIComponent(code)}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Authentication failed' }));
+      throw new Error(err.detail || 'Authentication failed');
+    }
+    return res.json();
   },
   getMe: async (): Promise<User> => {
     const real = await tryFetch<User>('/auth/me');
     return real || { id: 'demo', name: 'Demo User', email: 'demo@smurfpakad.ai', role: 'analyst' };
   },
   logout: () => {
-    localStorage.removeItem('auth_token');
+    localStorage.removeItem('authToken');
     localStorage.removeItem('refresh_token');
   },
 };
@@ -277,10 +280,10 @@ export const uploadApi = {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('authToken');
       const controller = new AbortController();
       const tid = setTimeout(() => controller.abort(), 30000);
-      const res = await fetch(`${API_V1}/upload`, {
+      const res = await fetch(`${API_V1}/upload/file`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
@@ -336,7 +339,6 @@ const MOCK_ADDRESSES: SuspiciousAddress[] = [
   { address: 'wallet_0175@crypto_btc',   riskScore: 0.81, riskLevel: 'high',     transactionCount: 8,  totalAmount: 78500.00,   flags: ['Layering Source'] },
 ];
 
-<<<<<<< HEAD
 // Generate deterministic mock data seeded by uploadId for variation
 function hashString(str: string): number {
   let hash = 0;
@@ -418,8 +420,6 @@ function generateSeededMockData(uploadId: string) {
   return { patterns, addresses: mockAddresses };
 }
 
-=======
->>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
 export const analysisApi = {
   run: async (uploadId: string) => {
     const real = await tryFetch<any>(`/analysis/${uploadId}/run`, { method: 'POST' });
@@ -429,11 +429,8 @@ export const analysisApi = {
     if (uploadId) {
       const real = await tryFetch<{ patterns: Pattern[] } | Pattern[]>(`/analysis/${uploadId}/patterns`);
       if (real) return Array.isArray(real) ? real : (real as any).patterns || [];
-<<<<<<< HEAD
       // Return seeded mock data for this uploadId
       return generateSeededMockData(uploadId).patterns;
-=======
->>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
     }
     return MOCK_PATTERNS;
   },
@@ -441,11 +438,8 @@ export const analysisApi = {
     if (uploadId) {
       const real = await tryFetch<{ addresses: SuspiciousAddress[] }>(`/analysis/${uploadId}/suspicious`);
       if (real) return real;
-<<<<<<< HEAD
       // Return seeded mock data for this uploadId
       return { addresses: generateSeededMockData(uploadId).addresses };
-=======
->>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9
     }
     return { addresses: MOCK_ADDRESSES };
   },
@@ -482,15 +476,22 @@ const MOCK_GRAPH: GraphData = {
     { source: 'wallet_0047@bhim',       target: 'collector_001@crypto_eth', suspicious: true,  weight: 0.71 },
   ],
   metadata: { totalNodes: 10, totalEdges: 8, suspiciousCount: 5 },
+  summary: {
+    top_illicit_ratio: 50,
+    fan_out_nodes: 4,
+    fan_in_nodes: 3,
+    avg_suspicious_score: 0.71,
+    model_confidence: 'high'
+  }
 };
 
 export const graphApi = {
   getSuspiciousSubgraph: async (uploadId: string, _topK?: number, _hop?: number): Promise<GraphData> => {
-    const real = await tryFetch<GraphData>(`/graph/${uploadId}/suspicious-subgraph`);
+    const real = await tryFetch<GraphData>(`/graph/suspicious/${uploadId}`);
     return real || MOCK_GRAPH;
   },
   getFullGraph: async (uploadId: string): Promise<GraphData> => {
-    const real = await tryFetch<GraphData>(`/graph/${uploadId}/full`);
+    const real = await tryFetch<GraphData>(`/graph/${uploadId}`);
     return real || MOCK_GRAPH;
   },
 };
@@ -758,7 +759,6 @@ export function createWebSocketConnection(
   ws.onerror = (e) => onError?.(e);
   return ws;
 }
-<<<<<<< HEAD
 
 export type WSMessage = 
   | { type: 'upload_progress'; uploadId: string; progress: number; status: string; message?: string }
@@ -805,5 +805,3 @@ export function useWebSocket(onMessage?: (msg: WSMessage) => void) {
 
   return { connected, lastMessage };
 }
-=======
->>>>>>> 76b53a3de7c860223f2fe71ff6d4d0213ebbd7e9

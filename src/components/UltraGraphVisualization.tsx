@@ -90,10 +90,40 @@ interface Alert {
   timestamp: number;
 }
 
+// ForceGraph2D imperative API
+interface ForceGraph2DInstance {
+  zoom: (zoom?: number, duration?: number) => number;
+  zoomToFit: (duration?: number, padding?: number) => void;
+  centerAt: (x?: number, y?: number, duration?: number) => void;
+  d3Force: (force: string, fn?: unknown) => unknown;
+  d3ReheatSimulation: () => void;
+  pauseAnimation: () => void;
+  resumeAnimation: () => void;
+}
+
+interface SimulationNode extends GraphNode {
+  val?: number;
+  x?: number;
+  y?: number;
+}
+
+interface SimulationLink {
+  source: SimulationNode | string;
+  target: SimulationNode | string;
+  weight: number;
+  high_risk: boolean;
+}
+
+type RawNode = GraphNode & {
+  riskLevel?: string;
+  suspiciousScore?: number;
+  risk?: number;
+};
+
 const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
-  const graphRef = useRef<any>();
+  const graphRef = useRef<ForceGraph2DInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   // Static demo data - defined outside component to prevent recreation
   const demoDataRef = useRef<GraphData>({
     meta: {
@@ -148,20 +178,21 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
       model_confidence: "high"
     }
   });
-  
+
   // Use provided data or stable demo data reference, normalizing field names
   const graphData = useMemo(() => {
     const source = data || demoDataRef.current;
     return {
       ...source,
-      nodes: source.nodes.map(n => ({
+      nodes: (source.nodes || []).map((n: RawNode) => ({
         ...n,
-        risk_level: ((n as any).risk_level || (n as any).riskLevel || 'low').toLowerCase(),
-        suspicious_score: (n as any).suspicious_score || (n as any).suspiciousScore || (n as any).risk || 0,
-      }))
+        risk_level: (n.risk_level || n.riskLevel || 'low').toLowerCase(),
+        suspicious_score: n.suspicious_score || n.suspiciousScore || n.risk || 0,
+      })),
+      edges: source.edges || [],
     };
   }, [data]);
-  
+
   // State
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -177,8 +208,8 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [centralityMode, setCentralityMode] = useState<'none' | 'pagerank' | 'betweenness' | 'closeness' | 'degree'>('none');
   const [showCommunities, setShowCommunities] = useState(false);
-  const [networkStats, setNetworkStats] = useState<any>(null);
-  
+  const [networkStats, setNetworkStats] = useState<Record<string, unknown> | null>(null);
+
   // New states for hover tooltip and trace all paths
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [showNodeMenu, setShowNodeMenu] = useState(false);
@@ -187,32 +218,35 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   const [tracedEdges, setTracedEdges] = useState<Set<string>>(new Set());
 
   // Calculate Network Statistics - only when data changes (use node count as stable dependency)
-  const nodeCount = graphData.nodes.length;
-  const edgeCount = graphData.edges.length;
-  
+  const nodeCount = graphData.nodes?.length || 0;
+  const edgeCount = graphData.edges?.length || 0;
+
   useEffect(() => {
-    const nodes = graphData.nodes;
-    const edges = graphData.edges;
-    
+    const nodes = graphData.nodes || [];
+    const edges = graphData.edges || [];
+
     const totalNodes = nodes.length;
     const totalEdges = edges.length;
+    if (totalNodes === 0) return;
+
     const maxPossibleEdges = totalNodes * (totalNodes - 1);
     const density = totalEdges / maxPossibleEdges;
-    
+
     // Calculate average clustering coefficient (simplified)
     const avgClustering = nodes.reduce((sum, node) => {
-      const neighbors = edges.filter(e => 
-        e.source === node.id || e.target === node.id
+      const neighbors = edges.filter(e =>
+        (typeof e.source === 'string' ? e.source : e.source?.id) === node.id ||
+        (typeof e.target === 'string' ? e.target : e.target?.id) === node.id
       ).length;
       return sum + (neighbors > 1 ? neighbors / (neighbors - 1) : 0);
     }, 0) / totalNodes;
-    
+
     // Diameter (simplified - using max degree separation as approximation)
     const diameter = 4; // Simplified for demo
-    
+
     // Community count
     const communities = new Set(nodes.map(n => n.community)).size;
-    
+
     setNetworkStats({
       density: (density * 100).toFixed(2),
       avgClustering: avgClustering.toFixed(3),
@@ -225,23 +259,27 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
 
   // Detect Patterns and Generate Alerts - only when data changes
   useEffect(() => {
+    if (!graphData.nodes || !graphData.edges) return;
     const detectedAlerts: Alert[] = [];
-    
+
     // Detect circular flows (A -> B -> C -> A)
     const edgeMap = new Map<string, string[]>();
     graphData.edges.forEach(edge => {
-      const src = typeof edge.source === 'string' ? edge.source : edge.source;
-      const tgt = typeof edge.target === 'string' ? edge.target : edge.target;
+      if (!edge) return;
+      const src = typeof edge.source === 'string' ? edge.source : edge.source?.id;
+      const tgt = typeof edge.target === 'string' ? edge.target : edge.target?.id;
+      if (!src || !tgt) return;
       if (!edgeMap.has(src)) edgeMap.set(src, []);
       edgeMap.get(src)!.push(tgt);
     });
-    
+
     // Simple cycle detection
     const cycles: string[][] = [];
     graphData.nodes.forEach(node => {
+      if (!node?.id) return;
       const visited = new Set<string>();
       const path: string[] = [];
-      
+
       const dfs = (current: string, target: string) => {
         if (visited.has(current)) {
           if (current === target && path.length >= 3) {
@@ -251,18 +289,18 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
         }
         visited.add(current);
         path.push(current);
-        
+
         const neighbors = edgeMap.get(current) || [];
         neighbors.forEach(neighbor => dfs(neighbor, target));
-        
+
         path.pop();
       };
-      
+
       if (edgeMap.has(node.id)) {
         dfs(node.id, node.id);
       }
     });
-    
+
     if (cycles.length > 0) {
       detectedAlerts.push({
         id: 'alert_1',
@@ -273,10 +311,10 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
         timestamp: Date.now()
       });
     }
-    
+
     // Detect rapid dispersal (one node with many outgoing high-risk edges)
     graphData.nodes.forEach(node => {
-      const outgoing = graphData.edges.filter(e => 
+      const outgoing = graphData.edges.filter(e =>
         (typeof e.source === 'string' ? e.source : e.source) === node.id && e.high_risk
       );
       if (outgoing.length >= 3) {
@@ -290,7 +328,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
         });
       }
     });
-    
+
     // Detect high-risk clusters
     const communities = new Map<number, GraphNode[]>();
     graphData.nodes.forEach(node => {
@@ -298,7 +336,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
       if (!communities.has(node.community)) communities.set(node.community, []);
       communities.get(node.community)!.push(node);
     });
-    
+
     communities.forEach((nodes, communityId) => {
       const avgRisk = nodes.reduce((sum, n) => sum + n.suspicious_score, 0) / nodes.length;
       if (avgRisk > 0.85 && nodes.length >= 3) {
@@ -312,19 +350,19 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
         });
       }
     });
-    
+
     setAlerts(detectedAlerts);
   }, [nodeCount, edgeCount]);
 
   // Time-based filtering - memoized to prevent re-renders
-  const maxTime = useMemo(() => 
-    Math.max(...graphData.nodes.map(n => n.timestamp || 100)),
-    [graphData.nodes]
-  );
+  const maxTime = useMemo(() => {
+    if (!graphData.nodes || graphData.nodes.length === 0) return 100;
+    return Math.max(...graphData.nodes.map(n => n.timestamp || 100));
+  }, [graphData.nodes]);
   const currentTimeThreshold = (timeSlider[0] / 100) * maxTime;
-  
-  const filteredNodes = useMemo(() => 
-    graphData.nodes.filter(node => {
+
+  const filteredNodes = useMemo(() =>
+    (graphData.nodes || []).filter(node => {
       const matchesSearch = searchTerm === '' || node.id.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesRisk = filterRisk === 'all' || node.risk_level === filterRisk;
       const matchesTime = !node.timestamp || node.timestamp <= currentTimeThreshold;
@@ -334,10 +372,13 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   );
 
   const filteredEdges = useMemo(() => {
+    if (!graphData.edges || !Array.isArray(graphData.edges)) return [];
     const nodeIds = new Set(filteredNodes.map(n => n.id));
     return graphData.edges.filter(edge => {
-      const sourceId = typeof edge.source === 'string' ? edge.source : edge.source;
-      const targetId = typeof edge.target === 'string' ? edge.target : edge.target;
+      if (!edge) return false;
+      const sourceId = typeof edge.source === 'string' ? edge.source : edge.source?.id;
+      const targetId = typeof edge.target === 'string' ? edge.target : edge.target?.id;
+      if (!sourceId || !targetId) return false;
       const sourceExists = nodeIds.has(sourceId);
       const targetExists = nodeIds.has(targetId);
       const matchesTime = !edge.timestamp || edge.timestamp <= currentTimeThreshold;
@@ -357,7 +398,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   // Centrality-based colors
   const getCentralityColor = useCallback((node: GraphNode) => {
     if (centralityMode === 'none') return null; // Will use getNodeColor
-    
+
     const value = node.centrality?.[centralityMode] || 0;
     const intensity = Math.floor(value * 255);
     return `rgb(${255 - intensity}, ${intensity}, 150)`;
@@ -366,17 +407,17 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   const getNodeColor = useCallback((node: GraphNode) => {
     // Highlight traced node
     if (tracingAllPaths === node.id) return '#a855f7';
-    
+
     if (centralityMode !== 'none') {
       const value = node.centrality?.[centralityMode] || 0;
       const intensity = Math.floor(value * 255);
       return `rgb(${255 - intensity}, ${intensity}, 150)`;
     }
-    
+
     if (showCommunities && node.community) {
       return communityColors[node.community as keyof typeof communityColors] || '#999';
     }
-    
+
     if (node.risk_level === 'high') return '#ef4444';
     if (node.risk_level === 'medium') return '#f59e0b';
     return '#10b981';
@@ -386,10 +427,10 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     const sourceId = typeof link.source === 'object' ? (link.source as GraphNode)?.id : link.source;
     const targetId = typeof link.target === 'object' ? (link.target as GraphNode)?.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
-    
+
     // Check if this edge is being traced
     if (tracedEdges.has(edgeKey)) return '#a855f7';
-    
+
     if (highlightedPath.length > 0) {
       if (sourceId && targetId) {
         for (let i = 0; i < highlightedPath.length - 1; i++) {
@@ -406,34 +447,34 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     const sourceId = typeof link.source === 'object' ? (link.source as GraphNode)?.id : link.source;
     const targetId = typeof link.target === 'object' ? (link.target as GraphNode)?.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
-    
+
     // Wider for traced edges
     if (tracedEdges.has(edgeKey)) return 4;
-    
+
     return link.high_risk ? 2 : 1;
   }, [tracedEdges]);
 
   // Container dimensions
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     // Set initial width immediately
     const initialWidth = containerRef.current.offsetWidth;
     if (initialWidth > 0) {
       setDimensions({ width: initialWidth, height: 600 });
     }
-    
+
     const resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         const newWidth = entry.contentRect.width;
         if (newWidth > 0) {
           setDimensions({ width: newWidth, height: 600 });
         }
       }
     });
-    
+
     resizeObserver.observe(containerRef.current);
-    
+
     return () => resizeObserver.disconnect();
   }, []);
 
@@ -487,33 +528,35 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
-  
+
   // BFS for shortest path
   const findShortestPath = useCallback((startId: string, endId: string): string[] => {
+    if (!filteredEdges || filteredEdges.length === 0) return [];
     const queue: { node: string; path: string[] }[] = [{ node: startId, path: [startId] }];
     const visited = new Set<string>();
-    
+
     while (queue.length > 0) {
       const { node, path } = queue.shift()!;
-      
+
       if (node === endId) return path;
       if (visited.has(node)) continue;
       visited.add(node);
-      
+
       const neighbors = filteredEdges
         .filter(e => {
-          const src = typeof e.source === 'string' ? e.source : e.source;
+          const src = typeof e.source === 'string' ? e.source : e.source?.id;
           return src === node;
         })
-        .map(e => typeof e.target === 'string' ? e.target : e.target);
-      
+        .map(e => typeof e.target === 'string' ? e.target : e.target?.id)
+        .filter((n): n is string => !!n);
+
       for (const neighbor of neighbors) {
         if (!visited.has(neighbor)) {
           queue.push({ node: neighbor, path: [...path, neighbor] });
         }
       }
     }
-    
+
     return [];
   }, [filteredEdges]);
 
@@ -523,13 +566,13 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     const inDegree = node.degree?.in || 0;
     const outDegree = node.degree?.out || 0;
     const riskScore = node.suspicious_score || 0;
-    
+
     // Analyze in/out degree patterns
     const highFanIn = inDegree >= 5;
     const highFanOut = outDegree >= 5;
     const lowFanIn = inDegree <= 2;
     const lowFanOut = outDegree <= 2;
-    
+
     if (node.risk_level === 'high' || node.risk_level === 'critical') {
       if (highFanIn && highFanOut) {
         reasons.push("⚠️ High fan-in AND fan-out activity detected");
@@ -580,18 +623,19 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
 
   // Trace all paths from/to a node
   const traceAllPaths = useCallback((nodeId: string) => {
+    if (!filteredEdges || filteredEdges.length === 0) return;
     const connectedEdgeIds = new Set<string>();
-    
+
     // Find all edges connected to this node (both incoming and outgoing)
     filteredEdges.forEach(edge => {
-      const sourceId = typeof edge.source === 'object' ? (edge.source as any).id : edge.source;
-      const targetId = typeof edge.target === 'object' ? (edge.target as any).id : edge.target;
-      
+      const sourceId = typeof edge.source === 'object' ? (edge.source as SimulationNode).id : edge.source;
+      const targetId = typeof edge.target === 'object' ? (edge.target as SimulationNode).id : edge.target;
+
       if (sourceId === nodeId || targetId === nodeId) {
         connectedEdgeIds.add(`${sourceId}->${targetId}`);
       }
     });
-    
+
     setTracingAllPaths(nodeId);
     setTracedEdges(connectedEdgeIds);
     setShowNodeMenu(false);
@@ -605,9 +649,9 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     setPathStart(null);
   }, []);
 
-  const handleNodeClick = useCallback((node: any, event?: MouseEvent) => {
+  const handleNodeClick = useCallback((node: SimulationNode, event?: MouseEvent) => {
     setSelectedNode(node);
-    
+
     if (pathStart === null && !tracingAllPaths) {
       // Show context menu with options
       setShowNodeMenu(true);
@@ -636,7 +680,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   }, [pathStart, findShortestPath, tracingAllPaths, clearPathTracing]);
 
   // Handle node hover
-  const handleNodeHover = useCallback((node: any, prevNode: any) => {
+  const handleNodeHover = useCallback((node: SimulationNode | null, prevNode: SimulationNode | null) => {
     if (node) {
       setHoveredNode(node);
     } else {
@@ -647,7 +691,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   // Time-series animation
   useEffect(() => {
     if (!isPlaying) return;
-    
+
     const interval = setInterval(() => {
       setTimeSlider(prev => {
         const newValue = prev[0] + 1;
@@ -658,7 +702,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
         return [newValue];
       });
     }, 100);
-    
+
     return () => clearInterval(interval);
   }, [isPlaying]);
 
@@ -706,7 +750,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
       toast.error('Graph not ready for export');
       return;
     }
-    
+
     const canvas = document.querySelector('canvas');
     if (canvas) {
       canvas.toBlob(blob => {
@@ -731,7 +775,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
 
   // Track if initial zoom has been done
   const hasInitialZoom = useRef(false);
-  
+
   // Reset zoom tracking when data changes
   useEffect(() => {
     hasInitialZoom.current = false;
@@ -751,35 +795,35 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
       ...node,
       val: Math.max(1, Math.log2(node.degree.in + node.degree.out + 1)) // Logarithmic scaling
     })),
-    links: filteredEdges.map(edge => ({ ...edge }))
+    links: (filteredEdges || []).map(edge => ({ ...edge }))
   }), [filteredNodes, filteredEdges]);
 
   // Particle function
-  const getLinkParticles = useCallback((link: any) => {
+  const getLinkParticles = useCallback((link: SimulationLink) => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
-    
+
     // Animated particles for traced edges
     if (tracedEdges.has(edgeKey)) return 6;
-    
-    const isInPath = highlightedPath.length > 0 && 
-      highlightedPath.includes(link.source.id || link.source) && 
+
+    const isInPath = highlightedPath.length > 0 &&
+      highlightedPath.includes(link.source.id || link.source) &&
       highlightedPath.includes(link.target.id || link.target);
     return isInPath ? 4 : (link.high_risk ? 2 : 0);
   }, [highlightedPath, tracedEdges]);
 
-  const getLinkParticleColor = useCallback((link: any) => {
+  const getLinkParticleColor = useCallback((link: SimulationLink) => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
-    
+
     if (tracedEdges.has(edgeKey)) return '#c084fc'; // Light purple for particles
     return '#a855f7';
   }, [tracedEdges]);
 
   // Node label function - stable
-  const getNodeLabel = useCallback((node: any) => `
+  const getNodeLabel = useCallback((node: SimulationNode) => `
       ID: ${node.id}
       Risk: ${node.risk_level}
       Score: ${(node.suspicious_score * 100).toFixed(2)}%
@@ -789,7 +833,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   `, []);
 
   // Node value function - stable
-  const getNodeVal = useCallback((node: any) => node.val, []);
+  const getNodeVal = useCallback((node: SimulationNode) => node.val, []);
 
   // Graph props for 2D - don't memoize to avoid reference issues
   const graph2DProps = {
@@ -908,7 +952,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
               {/* Centrality Mode */}
               <div className="space-y-2">
                 <Label className="text-xs">Centrality Heatmap</Label>
-                <Select value={centralityMode} onValueChange={(v: any) => setCentralityMode(v)}>
+                <Select value={centralityMode} onValueChange={(v: 'none' | 'pagerank' | 'betweenness' | 'closeness' | 'degree') => setCentralityMode(v)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -982,13 +1026,13 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
             <div className="flex items-center gap-2">
               <Route className="w-4 h-4" />
               <span className="text-sm">
-                {pathStart 
-                  ? `Click another node to trace path from ${pathStart}` 
+                {pathStart
+                  ? `Click another node to trace path from ${pathStart}`
                   : 'Click a node to start path tracing'}
               </span>
               {pathStart && (
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={() => {
                     setPathStart(null);
@@ -1180,12 +1224,12 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
           ) : (
             <ForceGraph2D ref={graphRef} {...graph2DProps} />
           )}
-          
+
           {/* Hover Tooltip */}
           {hoveredNode && (
-            <div 
+            <div
               className="absolute z-50 pointer-events-none"
-              style={{ 
+              style={{
                 left: '50%',
                 top: '20px',
                 transform: 'translateX(-50%)',
@@ -1194,14 +1238,13 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
             >
               <div className="bg-gray-900/95 dark:bg-gray-800/95 backdrop-blur-sm text-white rounded-xl shadow-2xl border border-purple-500/30 overflow-hidden">
                 {/* Header */}
-                <div className={`px-4 py-3 ${
-                  hoveredNode.risk_level === 'high' ? 'bg-red-600/90' :
-                  hoveredNode.risk_level === 'medium' ? 'bg-amber-600/90' : 'bg-green-600/90'
-                }`}>
+                <div className={`px-4 py-3 ${hoveredNode.risk_level === 'high' ? 'bg-red-600/90' :
+                    hoveredNode.risk_level === 'medium' ? 'bg-amber-600/90' : 'bg-green-600/90'
+                  }`}>
                   <div className="font-bold text-sm">{getNodeExplanation(hoveredNode).title}</div>
                   <div className="text-xs opacity-90 font-mono mt-1">{hoveredNode.id}</div>
                 </div>
-                
+
                 {/* Explanation */}
                 <div className="px-4 py-3 space-y-2">
                   {getNodeExplanation(hoveredNode).reasons.map((reason, idx) => (
@@ -1211,7 +1254,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
                     {getNodeExplanation(hoveredNode).verdict}
                   </div>
                 </div>
-                
+
                 {/* Stats */}
                 <div className="px-4 py-3 bg-gray-800/50 grid grid-cols-3 gap-3 text-center border-t border-gray-700">
                   <div>
@@ -1236,7 +1279,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
               </div>
             </div>
           )}
-          
+
           {/* Path Tracing Indicator */}
           {tracingAllPaths && (
             <div className="absolute top-4 left-4 z-40">
@@ -1248,7 +1291,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
                 <span className="text-xs bg-white/20 px-2 py-0.5 rounded">
                   {tracedEdges.size} edges
                 </span>
-                <button 
+                <button
                   onClick={clearPathTracing}
                   className="ml-2 hover:bg-white/20 p-1 rounded"
                 >
@@ -1258,17 +1301,17 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
             </div>
           )}
         </div>
-        
+
         {/* Node Click Context Menu */}
         {showNodeMenu && selectedNode && (
           <>
-            <div 
-              className="fixed inset-0 z-[99]" 
+            <div
+              className="fixed inset-0 z-[99]"
               onClick={() => setShowNodeMenu(false)}
             />
-            <div 
+            <div
               className="fixed z-[100]"
-              style={{ 
+              style={{
                 left: Math.min(nodeMenuPosition.x, window.innerWidth - 200),
                 top: Math.min(nodeMenuPosition.y, window.innerHeight - 150)
               }}

@@ -57,8 +57,32 @@ interface EnhancedGraphProps {
   data?: GraphData;
 }
 
+// ForceGraph2D imperative API
+interface ForceGraph2DInstance {
+  zoom: (zoom?: number, duration?: number) => number;
+  zoomToFit: (duration?: number, padding?: number) => void;
+  centerAt: (x?: number, y?: number, duration?: number) => void;
+  d3Force: (force: string, fn?: unknown) => unknown;
+  d3ReheatSimulation: () => void;
+  pauseAnimation: () => void;
+  resumeAnimation: () => void;
+}
+
+interface SimulationNode extends GraphNode {
+  val?: number;
+  x?: number;
+  y?: number;
+}
+
+interface SimulationLink {
+  source: SimulationNode | string;
+  target: SimulationNode | string;
+  weight: number;
+  high_risk: boolean;
+}
+
 const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
-  const graphRef = useRef<any>();
+  const graphRef = useRef<ForceGraph2DInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // State
@@ -248,8 +272,8 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
     
     // Find all edges connected to this node (both incoming and outgoing)
     filteredEdges.forEach(edge => {
-      const sourceId = typeof edge.source === 'object' ? (edge.source as any).id : edge.source;
-      const targetId = typeof edge.target === 'object' ? (edge.target as any).id : edge.target;
+      const sourceId = typeof edge.source === 'object' ? (edge.source as SimulationNode).id : edge.source;
+      const targetId = typeof edge.target === 'object' ? (edge.target as SimulationNode).id : edge.target;
       
       if (sourceId === nodeId || targetId === nodeId) {
         connectedEdgeIds.add(`${sourceId}->${targetId}`);
@@ -270,7 +294,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
   }, []);
 
   // Handle node click
-  const handleNodeClick = useCallback((node: any, event?: MouseEvent) => {
+  const handleNodeClick = useCallback((node: SimulationNode, event?: MouseEvent) => {
     if (pathStart === null && !tracingAllPaths) {
       // Show context menu with options
       setSelectedNode(node);
@@ -301,7 +325,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
   }, [pathStart, findShortestPath, tracingAllPaths, clearPathTracing]);
 
   // Handle node hover
-  const handleNodeHover = useCallback((node: any, prevNode: any) => {
+  const handleNodeHover = useCallback((node: SimulationNode | null, prevNode: SimulationNode | null) => {
     if (node) {
       setHoveredNode(node);
     } else {
@@ -323,7 +347,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
     }))
   };
 
-  const getNodeColor = (node: any) => {
+  const getNodeColor = (node: SimulationNode) => {
     if (tracingAllPaths === node.id) return '#a855f7'; // Purple for traced node
     if (highlightedPath.includes(node.id)) return '#a855f7';
     if (pathStart === node.id) return '#3b82f6';
@@ -332,7 +356,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
     return '#10b981';
   };
 
-  const getLinkColor = (link: any) => {
+  const getLinkColor = (link: SimulationLink) => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
@@ -348,7 +372,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
     return link.high_risk ? '#ef4444' : '#6b7280';
   };
 
-  const getLinkWidth = (link: any) => {
+  const getLinkWidth = (link: SimulationLink) => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
@@ -364,7 +388,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
   };
 
   // Check if edge should have animated particles
-  const getLinkParticles = (link: any) => {
+  const getLinkParticles = (link: SimulationLink) => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
@@ -378,7 +402,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
     return isInPath ? 4 : (link.high_risk ? 2 : 0);
   };
 
-  const getLinkParticleColor = (link: any) => {
+  const getLinkParticleColor = (link: SimulationLink) => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
@@ -447,7 +471,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
     height: dimensions.height,
     nodeColor: getNodeColor,
     nodeRelSize: 6,
-    nodeVal: (node: any) => node.val,
+    nodeVal: (node: SimulationNode) => node.val,
     linkColor: getLinkColor,
     linkWidth: getLinkWidth,
     linkDirectionalParticles: getLinkParticles,
@@ -470,7 +494,7 @@ const EnhancedGraphVisualization = ({ data }: EnhancedGraphProps) => {
     height: dimensions.height,
     nodeColor: getNodeColor,
     nodeRelSize: 6,
-    nodeVal: (node: any) => node.val,
+    nodeVal: (node: SimulationNode) => node.val,
     linkColor: getLinkColor,
     linkWidth: getLinkWidth,
     linkDirectionalParticles: getLinkParticles,

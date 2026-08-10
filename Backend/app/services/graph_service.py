@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
-from app.core.supabase import supabase_service
+from app.core.database_service import database_service
 from app.services.ml_service import ml_service
 from app.config import settings
 
@@ -47,7 +47,7 @@ class GraphService:
         Get transaction graph data for visualization
         """
         # Verify ownership
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         if not upload or upload.get("user_id") != user_id:
             return None
         
@@ -162,7 +162,7 @@ class GraphService:
         }
         
         # Cache the graph data
-        await supabase_service.save_graph_data(
+        await database_service.save_graph_data(
             upload_id,
             result["nodes"],
             result["edges"]
@@ -177,7 +177,7 @@ class GraphService:
         )
         max_risk = max((n.get("suspiciousScore", 0) for n in nodes_list), default=0.0)
         
-        await supabase_service.save_analysis_results(
+        await database_service.save_analysis_results(
             upload_id=upload_id,
             suspicious_node_count=suspicious_count,
             smurfing_patterns_detected=smurfing_patterns,
@@ -214,7 +214,7 @@ class GraphService:
             Subgraph with nodes, edges, and metadata
         """
         # Verify ownership
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         if not upload or upload.get("user_id") != user_id:
             return None
         
@@ -355,7 +355,7 @@ class GraphService:
         Calculate network statistics for an upload
         """
         # Verify ownership
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         if not upload or upload.get("user_id") != user_id:
             return None
         

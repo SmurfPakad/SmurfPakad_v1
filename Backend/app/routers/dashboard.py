@@ -10,7 +10,7 @@ from app.schemas.dashboard import (
     RecentUploadsResponse,
     RecentUpload
 )
-from app.core.supabase import supabase_service
+from app.core.database_service import database_service
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -21,7 +21,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     """Get dashboard statistics"""
     user_id = current_user["sub"]
     
-    stats_data = await supabase_service.get_dashboard_stats(user_id)
+    stats_data = await database_service.get_dashboard_stats(user_id)
     
     # Calculate risk score improvement (mock for now - could be computed from historical data)
     risk_score = int(min(100, max(0, 100 - (stats_data.get("max_risk_score", 0) * 100))))
@@ -49,7 +49,7 @@ async def get_recent_uploads(current_user: dict = Depends(get_current_user)):
     """Get recent uploads"""
     user_id = current_user["sub"]
     
-    uploads, _ = await supabase_service.get_uploads_by_user(user_id, page=1, limit=5)
+    uploads, _ = await database_service.get_uploads_by_user(user_id, page=1, limit=5)
     
     return RecentUploadsResponse(
         uploads=[

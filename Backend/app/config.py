@@ -35,22 +35,15 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # Supabase
-    SUPABASE_URL: str = "https://your-project.supabase.co"
-    SUPABASE_KEY: Optional[str] = None
-    SUPABASE_SERVICE_KEY: Optional[str] = None
-    SUPABASE_ANON_KEY: Optional[str] = None  # Alias for SUPABASE_KEY
-    
-    @property
-    def supabase_key(self) -> str:
-        """Get Supabase anon key - supports both SUPABASE_KEY and SUPABASE_ANON_KEY"""
-        return self.SUPABASE_KEY or self.SUPABASE_ANON_KEY or "your-supabase-anon-key"
+    # Database (SQLite local)
+    DATABASE_URL: str = "sqlite:///./smurfpakad.db"
     
     # OAuth (Google only)
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     
-    # File Storage
+    # OAuth Redirect URL - MUST match exactly what's registered in Google Cloud Console
+    OAUTH_REDIRECT_URL: str = "http://localhost:8000/api/v1/auth/google/callback"
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100MB
     ALLOWED_EXTENSIONS: str = ".csv,.xlsx,.xls,.json"

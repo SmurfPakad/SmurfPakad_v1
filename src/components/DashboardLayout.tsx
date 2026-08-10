@@ -17,12 +17,15 @@ import {
   Crosshair,
   Bell,
   Bot,
-  Scale
+  Scale,
+  GitBranch,
+  Target,
+  Grid3X3,
+  BookOpen
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useTheme } from "@/contexts/ThemeContext";
-import { GitBranch, Target, Grid3X3 } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -36,6 +39,7 @@ const navigation = [
   { name: "Federated ML", href: "/cryptoflow/federated", icon: Network },
   { name: "AI Governance", href: "/cryptoflow/governance", icon: Target },
   { name: "Compliance", href: "/cryptoflow/compliance", icon: Scale },
+  { name: "Documentation", href: "/cryptoflow/documentation", icon: BookOpen },
   { name: "Upload Data", href: "/cryptoflow/upload", icon: Upload },
   { name: "Analysis Results", href: "/cryptoflow/analysis", icon: BarChart3 },
   { name: "Transaction Graph", href: "/cryptoflow/graph", icon: Network },

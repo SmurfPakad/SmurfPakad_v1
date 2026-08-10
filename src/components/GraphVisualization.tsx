@@ -51,8 +51,37 @@ interface GraphVisualizationProps {
   data?: GraphData;
 }
 
+// ForceGraph2D imperative API used via ref
+interface ForceGraph2DInstance {
+  zoom: (zoom?: number, duration?: number) => number;
+  zoomToFit: (duration?: number, padding?: number) => void;
+  centerAt: (x?: number, y?: number, duration?: number) => void;
+  d3Force: (force: string, fn?: unknown) => unknown;
+  d3ReheatSimulation: () => void;
+  pauseAnimation: () => void;
+  resumeAnimation: () => void;
+}
+
+// Simulation adds x/y to nodes and resolves source/target on links
+interface SimulationNode extends Omit<ReturnType<() => GraphNode & { val: number }>, never> {
+  id: string;
+  risk_level: string;
+  suspicious_score: number;
+  degree: { in: number; out: number };
+  val: number;
+  x?: number;
+  y?: number;
+}
+
+interface SimulationLink {
+  source: SimulationNode | string;
+  target: SimulationNode | string;
+  weight: number;
+  high_risk: boolean;
+}
+
 const GraphVisualization = ({ data }: GraphVisualizationProps) => {
-  const graphRef = useRef<any>();
+  const graphRef = useRef<ForceGraph2DInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 600 });
@@ -230,7 +259,7 @@ const GraphVisualization = ({ data }: GraphVisualizationProps) => {
   }, [graphData.edges]);
 
   // Handle node click for path tracing
-  const handleNodeClick = useCallback((node: any) => {
+  const handleNodeClick = useCallback((node: SimulationNode) => {
     if (pathStart === null) {
       setPathStart(node.id);
       setSelectedNode(node);
@@ -271,7 +300,7 @@ const GraphVisualization = ({ data }: GraphVisualizationProps) => {
     }))
   };
 
-  const getNodeColor = (node: any) => {
+  const getNodeColor = (node: SimulationNode) => {
     if (highlightedPath.includes(node.id)) return '#a855f7'; // Purple for path
     if (pathStart === node.id) return '#3b82f6'; // Blue for start node
     if (node.risk_level === 'high') return '#ef4444'; // Red
@@ -279,7 +308,7 @@ const GraphVisualization = ({ data }: GraphVisualizationProps) => {
     return '#10b981'; // Green
   };
 
-  const getLinkColor = (link: any) => {
+  const getLinkColor = (link: SimulationLink) => {
     const isInPath = highlightedPath.length > 0 && 
       highlightedPath.includes(link.source.id || link.source) && 
       highlightedPath.includes(link.target.id || link.target);
@@ -288,7 +317,7 @@ const GraphVisualization = ({ data }: GraphVisualizationProps) => {
     return link.high_risk ? '#ef4444' : '#6b7280';
   };
 
-  const getLinkWidth = (link: any) => {
+  const getLinkWidth = (link: SimulationLink) => {
     const isInPath = highlightedPath.length > 0 && 
       highlightedPath.includes(link.source.id || link.source) && 
       highlightedPath.includes(link.target.id || link.target);
@@ -464,7 +493,7 @@ const GraphVisualization = ({ data }: GraphVisualizationProps) => {
               graphData={forceGraphData}
               width={dimensions.width}
               height={dimensions.height}
-              nodeLabel={(node: any) => `
+              nodeLabel={(node: SimulationNode) => `
                 ID: ${node.id}
                 Risk: ${node.risk_level}
                 Score: ${(node.suspicious_score * 100).toFixed(2)}%
@@ -472,10 +501,10 @@ const GraphVisualization = ({ data }: GraphVisualizationProps) => {
               `}
               nodeColor={getNodeColor}
               nodeRelSize={6}
-              nodeVal={(node: any) => node.val}
+              nodeVal={(node: SimulationNode) => node.val}
               linkColor={getLinkColor}
               linkWidth={getLinkWidth}
-              linkDirectionalParticles={(link: any) => {
+              linkDirectionalParticles={(link: SimulationLink) => {
                 const isInPath = highlightedPath.length > 0 && 
                   highlightedPath.includes(link.source.id || link.source) && 
                   highlightedPath.includes(link.target.id || link.target);

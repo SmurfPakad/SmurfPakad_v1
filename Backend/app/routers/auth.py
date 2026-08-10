@@ -23,8 +23,9 @@ async def google_oauth_redirect():
     Redirect to Google OAuth authorization URL
     """
     client_id = settings.GOOGLE_CLIENT_ID
-    # Redirect back to frontend - using exactly what's registered in Google Console
-    redirect_uri = f"{settings.FRONTEND_URL}"
+    # Redirect URI MUST match exactly what's registered in Google Cloud Console
+    # This should be the FRONTEND callback URL where Google sends the code
+    redirect_uri = f"{settings.FRONTEND_URL}/cryptoflow/auth/callback"
     
     if not client_id or client_id == "your-google-client-id":
         # Return a mock URL for development
@@ -48,9 +49,9 @@ async def google_oauth_redirect():
 @router.get("/google/callback")
 async def google_oauth_callback(code: str):
     """
-    Handle Google OAuth callback
+    Handle Google OAuth callback - exchanges code for tokens
     
-    Exchange authorization code for tokens
+    Frontend calls this after receiving the code from Google
     """
     try:
         result = await auth_service.oauth_login(

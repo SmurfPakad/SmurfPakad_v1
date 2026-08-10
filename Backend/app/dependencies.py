@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from app.core.security import verify_token
-from app.core.supabase import get_supabase_client
+from app.core.database_service import database_service
 from app.config import settings
 
 security = HTTPBearer()
@@ -47,6 +47,6 @@ async def get_current_user_optional(
 
 def get_db():
     """
-    Get Supabase client instance
+    Get database service instance
     """
-    return get_supabase_client()
+    return database_service

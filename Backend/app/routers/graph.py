@@ -103,6 +103,7 @@ async def get_suspicious_subgraph(
     - **nodes**: List of nodes with id, suspiciousScore, riskLevel, isSeedNode
     - **edges**: List of edges connecting nodes in the subgraph
     - **metadata**: Statistics about the subgraph
+    - **summary**: Summary statistics for the frontend
     """
     user_id = current_user["sub"]
     
@@ -119,6 +120,47 @@ async def get_suspicious_subgraph(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Could not generate suspicious subgraph"
         )
+    
+    # Add summary field for frontend compatibility
+    nodes = subgraph.get("nodes", [])
+    metadata = subgraph.get("metadata", {})
+    
+    # Calculate summary statistics
+    total_nodes = len(nodes)
+    if total_nodes > 0:
+        suspicious_scores = [n.get("suspiciousScore", 0) for n in nodes]
+        high_risk = sum(1 for s in suspicious_scores if s > 0.8)
+        medium_risk = sum(1 for s in suspicious_scores if 0.5 < s <= 0.8)
+        low_risk = sum(1 for s in suspicious_scores if s <= 0.5)
+        
+        # Fan-out nodes: high out-degree
+        fan_out = sum(1 for n in nodes if n.get("degree", {}).get("out", 0) >= 3)
+        # Fan-in nodes: high in-degree
+        fan_in = sum(1 for n in nodes if n.get("degree", {}).get("in", 0) >= 3)
+        
+        top_illicit_ratio = (high_risk / total_nodes) * 100 if total_nodes > 0 else 0
+        avg_score = sum(suspicious_scores) / len(suspicious_scores) if suspicious_scores else 0
+        
+        if avg_score > 0.7:
+            model_confidence = "high"
+        elif avg_score > 0.4:
+            model_confidence = "medium"
+        else:
+            model_confidence = "low"
+    else:
+        top_illicit_ratio = 0
+        fan_out = 0
+        fan_in = 0
+        avg_score = 0
+        model_confidence = "low"
+    
+    subgraph["summary"] = {
+        "top_illicit_ratio": round(top_illicit_ratio, 1),
+        "fan_out_nodes": fan_out,
+        "fan_in_nodes": fan_in,
+        "avg_suspicious_score": round(avg_score, 2),
+        "model_confidence": model_confidence
+    }
     
     return subgraph
 

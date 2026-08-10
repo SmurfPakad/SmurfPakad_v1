@@ -9,7 +9,7 @@ from pathlib import Path
 import io
 
 from app.config import settings
-from app.core.supabase import supabase_service
+from app.core.database_service import database_service
 from app.core.websocket import ws_manager
 from app.services.analysis_service import analysis_service
 
@@ -35,7 +35,7 @@ class ReportService:
         Generate a new report
         """
         # Verify upload ownership
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         if not upload or upload.get("user_id") != user_id:
             raise ValueError("Upload not found")
         
@@ -43,7 +43,7 @@ class ReportService:
         report_name = f"{report_type}_{upload.get('name', 'report')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         # Create report record
-        report = await supabase_service.create_report({
+        report = await database_service.create_report({
             "id": report_id,
             "user_id": user_id,
             "upload_id": upload_id,
@@ -61,7 +61,7 @@ class ReportService:
                 report_id, user_id, upload_id, report_type, report_format, filters
             )
         except Exception as e:
-            await supabase_service.update_report(report_id, {
+            await database_service.update_report(report_id, {
                 "status": "failed",
                 "error": str(e)
             })
@@ -114,7 +114,7 @@ class ReportService:
         # Update report record
         file_size = file_path.stat().st_size if file_path.exists() else 0
         
-        await supabase_service.update_report(report_id, {
+        await database_service.update_report(report_id, {
             "status": "completed",
             "file_path": str(file_path),
             "size": file_size,
@@ -467,7 +467,7 @@ class ReportService:
         limit: int = 10
     ) -> Tuple[List[Dict], int]:
         """Get reports for a user"""
-        reports, total = await supabase_service.get_reports_by_user(
+        reports, total = await database_service.get_reports_by_user(
             user_id=user_id,
             upload_id=upload_id,
             page=page,
@@ -481,7 +481,7 @@ class ReportService:
         user_id: str
     ) -> Optional[Dict]:
         """Get report by ID"""
-        report = await supabase_service.get_report_by_id(report_id, user_id)
+        report = await database_service.get_report_by_id(report_id, user_id)
         return report
     
     async def get_report_file(
@@ -490,7 +490,7 @@ class ReportService:
         user_id: str
     ) -> Optional[Dict]:
         """Get report file for download"""
-        report = await supabase_service.get_report_by_id(report_id, user_id)
+        report = await database_service.get_report_by_id(report_id, user_id)
         
         if not report or report.get("status") != "completed":
             return None
@@ -522,7 +522,7 @@ class ReportService:
         user_id: str
     ) -> bool:
         """Delete a report"""
-        report = await supabase_service.get_report_by_id(report_id, user_id)
+        report = await database_service.get_report_by_id(report_id, user_id)
         
         if not report:
             return False
@@ -531,7 +531,7 @@ class ReportService:
         if file_path.exists():
             file_path.unlink()
         
-        await supabase_service.delete_report(report_id, user_id)
+        await database_service.delete_report(report_id, user_id)
         return True
 
 

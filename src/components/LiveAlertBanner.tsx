@@ -56,7 +56,7 @@ export default function LiveAlertBanner() {
             setAlerts((prev) => [alert, ...prev.slice(0, 4)]); // max 5
             animateIn();
           }
-        } catch {}
+        } catch { /* no-op: invalid JSON from WS is silently discarded */ }
       };
 
       ws.onclose = () => {

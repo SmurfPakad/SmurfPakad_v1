@@ -24,6 +24,7 @@ import AgentChat from "./pages/AgentChat";
 import Governance from "./pages/Governance";
 import FederatedDemo from "./pages/FederatedDemo";
 import ComplianceDashboard from "./pages/ComplianceDashboard";
+import Documentation from "./pages/Documentation";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +112,11 @@ const App = () => (
           <Route path="/cryptoflow/compliance" element={
             <ProtectedRoute>
               <ComplianceDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/cryptoflow/documentation" element={
+            <ProtectedRoute>
+              <Documentation />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

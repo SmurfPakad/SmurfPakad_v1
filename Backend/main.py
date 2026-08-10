@@ -139,6 +139,16 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
+# Health check endpoint
+@app.get("/api/v1/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "SMURF HUNTER API",
+        "version": "1.0.0"
+    }
+
 
 # API v1 prefix
 API_V1_PREFIX = "/api/v1"

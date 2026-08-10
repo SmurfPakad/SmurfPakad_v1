@@ -17,7 +17,7 @@ from app.schemas.settings import (
     WebhookListResponse
 )
 from app.schemas.common import MessageResponse
-from app.core.supabase import supabase_service
+from app.core.database_service import database_service
 from app.core.security import generate_api_key, hash_api_key
 from app.dependencies import get_current_user
 
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 async def get_profile(current_user: dict = Depends(get_current_user)):
     """Get user profile"""
     user_id = current_user["sub"]
-    user = await supabase_service.get_user_by_id(user_id)
+    user = await database_service.get_user_by_id(user_id)
     
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -62,7 +62,7 @@ async def update_profile(
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
     
-    user = await supabase_service.update_user(user_id, update_data)
+    user = await database_service.update_user(user_id, update_data)
     
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -83,7 +83,7 @@ async def update_profile(
 async def get_notification_settings(current_user: dict = Depends(get_current_user)):
     """Get notification settings"""
     user_id = current_user["sub"]
-    user = await supabase_service.get_user_by_id(user_id)
+    user = await database_service.get_user_by_id(user_id)
     
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -115,7 +115,7 @@ async def update_notification_settings(
         "weekly_digest": request.weeklyDigest
     }
     
-    await supabase_service.update_user(user_id, {"notification_settings": settings})
+    await database_service.update_user(user_id, {"notification_settings": settings})
     return request
 
 
@@ -125,7 +125,7 @@ async def update_notification_settings(
 async def get_security_settings(current_user: dict = Depends(get_current_user)):
     """Get security settings"""
     user_id = current_user["sub"]
-    user = await supabase_service.get_user_by_id(user_id)
+    user = await database_service.get_user_by_id(user_id)
     
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -153,7 +153,7 @@ async def update_security_settings(
         "ip_whitelist": request.ipWhitelist
     }
     
-    await supabase_service.update_user(user_id, {"security_settings": settings})
+    await database_service.update_user(user_id, {"security_settings": settings})
     return request
 
 
@@ -163,7 +163,7 @@ async def update_security_settings(
 async def list_api_keys(current_user: dict = Depends(get_current_user)):
     """List API keys"""
     user_id = current_user["sub"]
-    keys = await supabase_service.list_api_keys(user_id)
+    keys = await database_service.list_api_keys(user_id)
     
     return APIKeyListResponse(
         keys=[
@@ -192,7 +192,7 @@ async def create_api_key(
     key_hash = hash_api_key(full_key)
     prefix = full_key[:8]
     
-    key_data = await supabase_service.create_api_key(
+    key_data = await database_service.create_api_key(
         user_id=user_id,
         name=request.name,
         key_hash=key_hash,
@@ -220,7 +220,7 @@ async def delete_api_key(
 ):
     """Delete an API key"""
     user_id = current_user["sub"]
-    await supabase_service.delete_api_key(key_id, user_id)
+    await database_service.delete_api_key(key_id, user_id)
     return MessageResponse(message="API key deleted successfully")
 
 
@@ -230,7 +230,7 @@ async def delete_api_key(
 async def list_webhooks(current_user: dict = Depends(get_current_user)):
     """List webhooks"""
     user_id = current_user["sub"]
-    webhooks = await supabase_service.list_webhooks(user_id)
+    webhooks = await database_service.list_webhooks(user_id)
     
     return WebhookListResponse(
         webhooks=[
@@ -256,7 +256,7 @@ async def create_webhook(
     """Create a new webhook"""
     user_id = current_user["sub"]
     
-    webhook = await supabase_service.create_webhook(
+    webhook = await database_service.create_webhook(
         user_id=user_id,
         name=request.name,
         url=str(request.url),
@@ -286,7 +286,7 @@ async def update_webhook(
     """Update a webhook"""
     user_id = current_user["sub"]
     
-    webhook = await supabase_service.update_webhook(
+    webhook = await database_service.update_webhook(
         webhook_id=webhook_id,
         user_id=user_id,
         name=request.name,
@@ -315,5 +315,5 @@ async def delete_webhook(
 ):
     """Delete a webhook"""
     user_id = current_user["sub"]
-    await supabase_service.delete_webhook(webhook_id, user_id)
+    await database_service.delete_webhook(webhook_id, user_id)
     return MessageResponse(message="Webhook deleted successfully")

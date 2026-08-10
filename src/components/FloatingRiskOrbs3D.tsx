@@ -17,12 +17,12 @@ interface RiskOrb {
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 class WebGLErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
-  constructor(props: any) {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
   static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(err: any) { console.warn('FloatingRiskOrbs3D WebGL error (using fallback):', err); }
+  componentDidCatch(error: Error) { console.warn('FloatingRiskOrbs3D WebGL error (using fallback):', error); }
   render() { return this.state.hasError ? this.props.fallback : this.props.children; }
 }
 

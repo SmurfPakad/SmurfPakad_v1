@@ -22,7 +22,7 @@ passlib[bcrypt]>=1.7.4
 httpx>=0.24.0
 
 # Database
-supabase>=2.0.0
+sqlalchemy>=2.0.0
 
 # File Processing
 openpyxl>=3.1.0

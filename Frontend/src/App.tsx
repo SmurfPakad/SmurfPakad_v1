@@ -1,6 +1,4 @@
 import React, { FC } from 'react';
-import './App.css';
-
 interface AppProps {}
 
 const App: FC<AppProps> = () => {

@@ -6,14 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Brain, Zap, AlertTriangle, CheckCircle, Loader2, 
-  Search, Filter, Eye, Network, Activity, 
-  TrendingUp, Target, Layers, GitBranch, 
-  Pulse, Shield, Sparkles, Wifi, Cpu
+import {
+  Brain, Zap, AlertTriangle, CheckCircle, Loader2,
+  Search, Filter, Eye, Network, Activity,
+  TrendingUp, Target, Layers, GitBranch,
+  Shield, Sparkles, Wifi, Cpu
 } from 'lucide-react';
 import { useWebSocket } from '@/lib/api';
 import { toast } from '@/components/ToastNotification';
+import { Navigate } from 'react-router-dom';
 
 interface GraphNode {
   id: string;
@@ -74,7 +75,7 @@ interface PatternCard {
 
 interface LiveAnalysisProps {
   uploadId: string;
-  onComplete?: (results: any) => void;
+  onComplete?: (results: Record<string, unknown>) => void;
 }
 
 const particleColors = {
@@ -96,7 +97,7 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   const [stageProgress, setStageProgress] = useState<Record<string, number>>({});
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [patterns, setPatterns] = useState<PatternCard[]>([]);
-  const [subgraphStats, setSubgraphStats] = useState<any>(null);
+  const [subgraphStats, setSubgraphStats] = useState<Record<string, unknown> | null>(null);
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
   const [meanScore, setMeanScore] = useState(0);
@@ -105,14 +106,14 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const [receivedRealMessage, setReceivedRealMessage] = useState(false);
-  
-  const graphRef = useRef<any>(null);
+
+  const graphRef = useRef<object | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dimensions = useRef({ width: 800, height: 500 });
   const particleAnimationRef = useRef<number>(0);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [showNodeDetail, setShowNodeDetail] = useState<GraphNode | null>(null);
-  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Demo data for immediate visualization
   const demoData = useMemo<GraphData>(() => ({
@@ -145,14 +146,14 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
     if (msg.type === 'analysis_stream' && msg.uploadId === uploadId) {
       // Mark that we're receiving real backend messages
       setReceivedRealMessage(true);
-      
+
       const stage = msg.stage;
       const prog = msg.progress;
-      
+
       setCurrentStage(stage);
       setProgress(prog);
       setStageProgress(prev => ({ ...prev, [stage]: prog }));
-      
+
       if (msg.data) {
         if (stage === 'parsing' && msg.data.rows) {
           setNodeCount(msg.data.rows);
@@ -169,9 +170,9 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
           setPatterns(prev => {
             const exists = prev.find(p => p.id === msg.data.pattern.id);
             if (exists) return prev;
-            return [...prev, { 
-              ...msg.data.pattern, 
-              timestamp: Date.now() 
+            return [...prev, {
+              ...msg.data.pattern,
+              timestamp: Date.now()
             }];
           });
         }
@@ -186,7 +187,7 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
         }
       }
     }
-    
+
     if (msg.type === 'analysis_update' && msg.uploadId === uploadId && msg.status === 'failed') {
       setError('Analysis failed');
       setCurrentStage('error');
@@ -209,22 +210,22 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   // Auto-advance through stages for demo mode (only when NO real WebSocket messages)
   useEffect(() => {
     if (isComplete || wsConnected || receivedRealMessage) return;
-    
+
     const stageOrder = STAGES.map(s => s.id);
     const currentIndex = stageOrder.indexOf(currentStage);
     if (currentIndex === -1) return;
-    
+
     const nextStage = stageOrder[currentIndex + 1];
     if (!nextStage) return;
-    
-    const targetProgress = STAGES[currentIndex + 1] ? 
+
+    const targetProgress = STAGES[currentIndex + 1] ?
       (currentIndex + 1) * 100 / (STAGES.length - 1) : 100;
-    
+
     autoAdvanceTimerRef.current = setTimeout(() => {
       setCurrentStage(nextStage);
       setProgress(targetProgress);
     }, 3000 + Math.random() * 2000);
-    
+
     return () => {
       if (autoAdvanceTimerRef.current) {
         clearTimeout(autoAdvanceTimerRef.current);
@@ -243,7 +244,7 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver(entries => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         dimensions.current = { width: entry.contentRect.width, height: 500 };
       }
     });
@@ -275,7 +276,7 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   // Edge color
   const getLinkColor = useCallback((link: GraphEdge) => link.high_risk ? '#ef4444' : '#64748b', []);
   const getLinkWidth = useCallback((link: GraphEdge) => link.high_risk ? 2.5 : 1, []);
-  
+
   // Particles for high-risk edges
   const getLinkParticles = useCallback((link: GraphEdge) => link.high_risk ? 3 : 0, []);
   const getParticleColor = useCallback(() => '#a855f7', []);
@@ -295,9 +296,9 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   return (
     <div className="space-y-6">
       {/* Header with Live Badge */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }} 
-        animate={{ opacity: 1, y: 0 }} 
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
         <div className="flex items-center gap-4">
@@ -305,9 +306,9 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-cyan-600 flex items-center justify-center">
               <Brain className="w-6 h-6 text-white" />
             </div>
-            <motion.span 
+            <motion.span
               className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white/10"
-              animate={{ scale: [1, 1.2, 1] }} 
+              animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
           </div>
@@ -332,14 +333,14 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
           <div className="relative">
             {/* Progress line */}
             <div className="absolute top-6 left-12 right-12 h-1 bg-gray-800 rounded-full overflow-hidden">
-              <motion.div 
+              <motion.div
                 className="h-full bg-gradient-to-r from-purple-500 via-cyan-500 to-green-500 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.8, ease: 'easeOut' }}
               />
             </div>
-            
+
             {/* Stage nodes */}
             <div className="flex items-center justify-between relative z-10 px-2">
               {STAGES.map((stage, idx) => (
@@ -353,25 +354,25 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
                   <div className="relative">
                     <div className={`
                       w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all duration-500
-                      ${idx < stageIndex 
-                        ? 'bg-gradient-to-br from-purple-500 to-cyan-500 border-purple-500 text-white' 
-                        : idx === stageIndex 
-                        ? 'bg-white/10 border-current text-current animate-pulse shadow-[0_0_20px_rgba(168,85,247,0.5)]' 
-                        : 'bg-gray-800/50 border-gray-700 text-gray-500'
+                      ${idx < stageIndex
+                        ? 'bg-gradient-to-br from-purple-500 to-cyan-500 border-purple-500 text-white'
+                        : idx === stageIndex
+                          ? 'bg-white/10 border-current text-current animate-pulse shadow-[0_0_20px_rgba(168,85,247,0.5)]'
+                          : 'bg-gray-800/50 border-gray-700 text-gray-500'
                       }
-                    `} style={{ '--current': stage.color.replace('text-', '') }}>
+                    `} style={{ '--current': stage.color.replace('text-', '') } as React.CSSProperties & Record<'--current', string>}>
                       {stage.icon}
                     </div>
                     {/* Pulse ring for active stage */}
                     {idx === stageIndex && (
-                      <motion.div 
+                      <motion.div
                         className="absolute -inset-2 rounded-xl border-2 border-current/50"
                         animate={{ scale: [1, 1.3], opacity: [0.6, 0] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       />
                     )}
                     {idx < stageIndex && (
-                      <motion.div 
+                      <motion.div
                         className="absolute -bottom-3 left-1/2 -translate-x-1/2"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -398,8 +399,8 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Live Graph - 2/3 width */}
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }} 
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="xl:col-span-2 space-y-4"
         >
@@ -408,7 +409,7 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <motion.div 
+                  <motion.div
                     className="w-2 h-2 rounded-full bg-green-500"
                     animate={{ opacity: [1, 0.3, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}
@@ -463,7 +464,7 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
                   backgroundColor="transparent"
                 />
               )}
-              
+
               {/* Loading overlay */}
               <AnimatePresence mode="wait">
                 {currentStage !== 'complete' && (
@@ -589,8 +590,8 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
         </motion.div>
 
         {/* Side Panel - Patterns & Stats */}
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }} 
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="space-y-4"
         >
@@ -655,11 +656,10 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
                           animate={{ opacity: 1, x: 0, height: 'auto' }}
                           exit={{ opacity: 0, x: 20, height: 0 }}
                           transition={{ delay: idx * 0.1 }}
-                          className={`p-3 rounded-lg border-l-4 transition-all ${
-                            pattern.severity === 'critical' ? 'bg-red-500/10 border-red-500' :
-                            pattern.severity === 'high' ? 'bg-orange-500/10 border-orange-500' :
-                            'bg-yellow-500/10 border-yellow-500'
-                          }`}
+                          className={`p-3 rounded-lg border-l-4 transition-all ${pattern.severity === 'critical' ? 'bg-red-500/10 border-red-500' :
+                              pattern.severity === 'high' ? 'bg-orange-500/10 border-orange-500' :
+                                'bg-yellow-500/10 border-yellow-500'
+                            }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1">
@@ -759,15 +759,15 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
                 </div>
               </Card>
               <div className="grid grid-cols-2 gap-3">
-                <Button 
+                <Button
                   className="bg-purple-600 hover:bg-purple-700 h-12"
                   onClick={() => navigate(`/cryptoflow/graph?uploadId=${uploadId}`)}
                 >
                   <Network className="w-5 h-5 mr-2" />
                   View Graph
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 h-12"
                   onClick={() => navigate('/cryptoflow/reports')}
                 >

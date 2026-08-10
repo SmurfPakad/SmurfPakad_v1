@@ -7,7 +7,7 @@ from pathlib import Path
 import uuid
 import pandas as pd
 
-from app.core.supabase import supabase_service
+from app.core.database_service import database_service
 from app.services.ml_service import ml_service
 from app.config import settings
 
@@ -65,7 +65,7 @@ class AnalysisService:
             Complete analysis results
         """
         # Verify ownership
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         if not upload or upload.get("user_id") != user_id:
             raise ValueError("Upload not found or access denied")
         
@@ -107,7 +107,7 @@ class AnalysisService:
             )
         
         # Save to analysis_results table
-        await supabase_service.save_analysis_results(
+        await database_service.save_analysis_results(
             upload_id=upload_id,
             suspicious_node_count=suspicious_node_count,
             smurfing_patterns_detected=smurfing_patterns,
@@ -116,10 +116,10 @@ class AnalysisService:
         
         # Also save patterns and addresses to their tables
         for pattern in patterns:
-            await supabase_service.save_pattern(upload_id, pattern)
+            await database_service.save_pattern(upload_id, pattern)
         
         for address in suspicious_addresses:
-            await supabase_service.save_suspicious_address(upload_id, address)
+            await database_service.save_suspicious_address(upload_id, address)
         
         return results
     
@@ -133,12 +133,12 @@ class AnalysisService:
         Retrieves stored results from analysis_results table
         """
         # Verify upload belongs to user
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         if not upload or upload.get("user_id") != user_id:
             return None
         
         # Get stored analysis results
-        stored_results = await supabase_service.get_analysis_results(upload_id)
+        stored_results = await database_service.get_analysis_results(upload_id)
         
         if stored_results:
             # Return data from database
@@ -181,23 +181,23 @@ class AnalysisService:
         """
         # If upload_id provided, verify ownership
         if upload_id:
-            upload = await supabase_service.get_upload_by_id(upload_id)
+            upload = await database_service.get_upload_by_id(upload_id)
             if not upload or upload.get("user_id") != user_id:
                 return []
             # Get patterns for specific upload
-            patterns = await supabase_service.get_patterns_by_filters(
+            patterns = await database_service.get_patterns_by_filters(
                 upload_id=upload_id,
                 pattern_type=pattern_type,
                 severity=severity
             )
         else:
             # Get all user's uploads first, then get patterns for all of them
-            uploads, _ = await supabase_service.get_uploads_by_user(user_id, page=1, limit=100)
+            uploads, _ = await database_service.get_uploads_by_user(user_id, page=1, limit=100)
             upload_ids = [u["id"] for u in uploads]
             
             all_patterns = []
             for uid in upload_ids:
-                patterns_for_upload = await supabase_service.get_patterns_by_filters(
+                patterns_for_upload = await database_service.get_patterns_by_filters(
                     upload_id=uid,
                     pattern_type=pattern_type,
                     severity=severity
@@ -233,11 +233,11 @@ class AnalysisService:
         """
         # If upload_id provided and not "all", verify ownership
         if upload_id and upload_id != "all":
-            upload = await supabase_service.get_upload_by_id(upload_id)
+            upload = await database_service.get_upload_by_id(upload_id)
             if not upload or upload.get("user_id") != user_id:
                 return [], {"page": page, "limit": limit, "total": 0}
             # Get addresses for specific upload
-            addresses, total = await supabase_service.get_suspicious_addresses(
+            addresses, total = await database_service.get_suspicious_addresses(
                 upload_id=upload_id,
                 risk_level=risk_level,
                 page=page,
@@ -245,11 +245,11 @@ class AnalysisService:
             )
         else:
             # Get all user's uploads first, then get addresses for all of them
-            uploads, _ = await supabase_service.get_uploads_by_user(user_id, page=1, limit=100)
+            uploads, _ = await database_service.get_uploads_by_user(user_id, page=1, limit=100)
             upload_ids = [u["id"] for u in uploads]
             
             if upload_ids:
-                addresses, total = await supabase_service.get_suspicious_addresses(
+                addresses, total = await database_service.get_suspicious_addresses(
                     upload_ids=upload_ids,
                     risk_level=risk_level,
                     page=page,
@@ -317,11 +317,11 @@ class AnalysisService:
         Returns:
             Subgraph with nodes, edges, and visualization metadata
         """
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         if not upload or upload.get("user_id") != user_id:
             raise ValueError("Upload not found")
         
-        transactions = await supabase_service.get_transactions_by_upload(upload_id)
+        transactions = await database_service.get_transactions_by_upload(upload_id)
         if not transactions:
             return {"nodes": [], "edges": [], "metadata": {}}
         

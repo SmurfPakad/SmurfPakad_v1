@@ -13,7 +13,7 @@ import json
 from fastapi import UploadFile
 
 from app.config import settings
-from app.core.supabase import supabase_service
+from app.core.database_service import database_service
 from app.core.websocket import ws_manager
 from app.services.ml_service import ml_service
 
@@ -64,10 +64,13 @@ class UploadService:
             await f.write(content)
         
         # Create upload record matching exact schema (columns: id, user_id, filename, uploaded_at, status, row_count)
-        upload_record = await supabase_service.create_upload({
+        upload_record = await database_service.create_upload({
             "id": upload_id,
             "user_id": user_id,
-            "filename": file.filename,
+            "filename": file_path.name,
+            "original_filename": file.filename,
+            "file_type": file_ext,
+            "size_bytes": file_size,
             "uploaded_at": datetime.utcnow().isoformat(),
             "status": "processing",
             "row_count": 0
@@ -83,7 +86,7 @@ class UploadService:
             records = await self._process_file(file_path, file_ext, upload_id, user_id)
             
             # Update upload record
-            await supabase_service.update_upload(upload_id, {
+            await database_service.update_upload(upload_id, {
                 "status": "completed",
                 "row_count": records
             })
@@ -100,7 +103,7 @@ class UploadService:
             )
             
         except Exception as e:
-            await supabase_service.update_upload(upload_id, {
+            await database_service.update_upload(upload_id, {
                 "status": "failed"
             })
             
@@ -221,7 +224,7 @@ class UploadService:
                 )
             
             # Save to analysis_results table
-            await supabase_service.save_analysis_results(
+            await database_service.save_analysis_results(
                 upload_id=upload_id,
                 suspicious_node_count=suspicious_node_count,
                 smurfing_patterns_detected=smurfing_patterns,
@@ -230,11 +233,11 @@ class UploadService:
             
             # Save patterns to database
             for pattern in patterns:
-                await supabase_service.save_pattern(upload_id, pattern)
+                await database_service.save_pattern(upload_id, pattern)
             
             # Save suspicious addresses to database
             for address in suspicious_addresses:
-                await supabase_service.save_suspicious_address(upload_id, address)
+                await database_service.save_suspicious_address(upload_id, address)
             
             # Stage 6: Complete
             await ws_manager.broadcast_analysis_stream(user_id, upload_id, "complete", 100, {
@@ -353,7 +356,7 @@ class UploadService:
         """
         Get upload history for a user
         """
-        uploads, total = await supabase_service.get_uploads_by_user(
+        uploads, total = await database_service.get_uploads_by_user(
             user_id, page, limit, status
         )
         
@@ -367,7 +370,7 @@ class UploadService:
         """
         Get upload details
         """
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         
         if upload and upload.get("user_id") == user_id:
             return upload
@@ -382,7 +385,7 @@ class UploadService:
         """
         Delete an upload and its associated data
         """
-        upload = await supabase_service.get_upload_by_id(upload_id)
+        upload = await database_service.get_upload_by_id(upload_id)
         
         if not upload or upload.get("user_id") != user_id:
             return False
@@ -393,7 +396,7 @@ class UploadService:
             file_path.unlink()
         
         # Delete from database
-        await supabase_service.delete_upload(upload_id)
+        await database_service.delete_upload(upload_id)
         
         return True
 
