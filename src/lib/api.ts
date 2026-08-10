@@ -533,7 +533,7 @@ EXECUTIVE SUMMARY
 -----------------
 GATv2 model detected 3 high-risk money laundering patterns across 608 transactions.
 
-Total suspicious volume    : ₹38,50,400.50
+Total suspicious volume    : \u20b938,50,400.50
 Transactions analyzed      : 15,842
 Wallets flagged (critical) : 4
 Average confidence         : 91.3%
@@ -546,19 +546,19 @@ DETECTED PATTERNS
 
 TOP SUSPICIOUS ADDRESSES
 ------------------------
-1. collector_001@crypto_eth  | Risk: 98% | ₹38,50,400
-2. mule_004@paytm            | Risk: 92% | ₹1,75,000
-3. mule_006@paytm            | Risk: 87% | ₹1,42,300
+1. collector_001@crypto_eth  | Risk: 98% | \u20b938,50,400
+2. mule_004@paytm            | Risk: 92% | \u20b91,75,000
+3. mule_006@paytm            | Risk: 87% | \u20b91,42,300
 
 RECOMMENDATIONS
 ---------------
-• File SAR with FIU-IND for collector_001@crypto_eth immediately
-• Freeze mule_004@paytm and mule_006@paytm under PMLA 2002
-• Initiate KYC re-verification for all cluster members
+\u2022 File SAR with FIU-IND for collector_001@crypto_eth immediately
+\u2022 Freeze mule_004@paytm and mule_006@paytm under PMLA 2002
+\u2022 Initiate KYC re-verification for all cluster members
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 Powered by IBM watsonx.ai | FIU-IND Compliant | FATF Typology Mapped
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501`;
     return new Blob([content], { type: 'text/plain' });
   },
 
@@ -569,7 +569,7 @@ Powered by IBM watsonx.ai | FIU-IND Compliant | FATF Typology Mapped
   },
 };
 
-// ─── Settings API ─────────────────────────────────────────────────────────────
+// ─── Settings API ────────────────────────────────────────────────────────────
 
 export const settingsApi = {
   getProfile: async (): Promise<User> => {
@@ -614,120 +614,75 @@ export const ibmAiApi = {
     const riskPct = Math.round((data.riskScore || 0.92) * 100);
     const isHighRisk = riskPct > 75;
     return {
-      generatedBy: 'IBM watsonx.ai (granite-3-8b-instruct)',
-      generatedAt: new Date().toISOString(),
-      walletId: data.walletId,
-      brief: `Wallet ${data.walletId} exhibits a ${data.riskLevel || 'critical'}-risk profile with a GATv2 suspicion score of ${riskPct}%. ${isHighRisk ? 'The node participates in a classic smurfing cluster, receiving sub-threshold transactions from dispersed sources before aggregating into an offshore collector wallet, aligning with FATF Typology TR-05 (Structuring).' : 'Transaction patterns show limited but notable anomalies warranting monitoring.'}`,
-      riskAssessment: `GATv2 model assigns a raw suspicious score of ${riskPct}/100. Fan-in degree: ${data.graphMetrics?.in_degree ?? 4}, Fan-out degree: ${data.graphMetrics?.out_degree ?? 3}. Effective risk classification: ${data.riskLevel?.toUpperCase() || 'HIGH'}.`,
+      brief: `Wallet ${data.walletId} exhibits a ${riskPct}% GATv2 risk score driven by ${data.patterns?.length ?? 3} structural anomalies. The node demonstrates classic ${data.riskLevel}-severity money mule behaviour: receiving funds from ${data.graphMetrics?.in_degree ?? 4} distinct sources and redistributing to ${data.graphMetrics?.out_degree ?? 3} destinations within compressed timeframes — consistent with FATF Typology TR-05 (Smurfing via Structuring).`,
+      riskAssessment: isHighRisk
+        ? `CRITICAL RISK — Immediate intervention required. Cluster activity indicates coordinated layering across multiple payment rails. Threshold proximity ratio of 0.95 confirms deliberate sub-₹10K structuring to evade RBI reporting mandates. Recommend SAR filing within 24 hours under PMLA 2002 Section 12.`
+        : `MEDIUM RISK — Elevated activity warrants enhanced due diligence. Pattern suggests possible aggregation behaviour; monitor for escalation to structuring or rapid asset movement.`,
       regulatoryFlags: isHighRisk ? [
-        { rule: 'FATF TR-05', description: 'Smurfing / Structuring — multiple sub-threshold transactions to avoid reporting thresholds', severity: 'critical' },
-        { rule: 'PMLA S.12A', description: 'Suspected placement of funds via multiple UPI accounts', severity: 'high' },
-        { rule: 'RBI KYC 2016 §7', description: 'Transaction velocity exceeds permitted threshold for KYC Tier-1 account', severity: 'medium' },
+        { rule: 'FATF TR-05', description: 'Smurfing / Structuring — transactions split below RBI ₹10K threshold', severity: 'critical' },
+        { rule: 'FATF TR-08', description: 'Threshold evasion — proximity ratio 0.95', severity: 'high' },
+        { rule: 'PMLA 2002 S.12', description: 'SAR filing obligation triggered — cumulative amount exceeds ₹10L in 30 days', severity: 'critical' },
       ] : [
-        { rule: 'PMLA S.12', description: 'Unusual transaction pattern detected — monitoring recommended', severity: 'medium' },
+        { rule: 'FATF TR-03', description: 'Unusual transaction velocity', severity: 'medium' },
       ],
       recommendations: isHighRisk ? [
-        'File Suspicious Activity Report (SAR) with FIU-IND within 7 days.',
-        'Freeze wallet pending investigation under PMLA 2002.',
-        'Initiate KYC re-verification for all wallets in the cluster.',
-        'Escalate to law enforcement if total laundered amount exceeds ₹10 Lakh.',
-        'Cross-check SWIFT/SEPA records for any international wire component.',
+        'File Suspicious Activity Report (SAR) with FIU-IND immediately',
+        'Freeze wallet pending investigation under PMLA 2002',
+        'Initiate cross-platform KYC re-verification for all cluster members',
+        'Escalate to ED/CBI if crypto cross-border flows confirmed',
       ] : [
-        'Place wallet under enhanced monitoring for 30 days.',
-        'Request voluntary KYC documentation from wallet owner.',
+        'Place wallet under enhanced monitoring for 30 days',
+        'Request transaction history from payment platform',
+        'Conduct periodic peer-group comparison analysis',
       ],
+      generatedBy: 'IBM watsonx.ai granite-3-3-8b-instruct',
+      confidence: data.riskScore,
+      timestamp: new Date().toISOString(),
     };
-  },
-
-  generateSafeguardAdvisory: async (data: any) => {
-    const real = await tryFetch<any>('/ibm-ai/safeguard-advisory', { method: 'POST', body: JSON.stringify(data) });
-    return real || { advisory: `Risk level ${data.riskLevel}: ${data.reasons?.join(', ') || 'Suspicious activity detected.'}`, generatedBy: 'IBM watsonx.ai (granite-3-8b-instruct)', generatedAt: new Date().toISOString() };
-  },
-
-  getStatus: async () => {
-    const real = await tryFetch<any>('/ibm-ai/status');
-    return real || { configured: true, provider: 'IBM watsonx.ai', model: 'granite-3-8b-instruct', status: 'demo', message: 'Running in demo mode' };
   },
 };
 
-// ─── Safeguard API ────────────────────────────────────────────────────────────
-
-export const safeguardApi = {
-  checkTransaction: async (data: any) => {
-    const real = await tryFetch<any>('/safeguard/check', { method: 'POST', body: JSON.stringify(data) });
-    if (real) return real;
-    const riskScore = Math.random() * 0.4 + 0.1;
-    return { riskScore, riskLevel: riskScore > 0.7 ? 'high' : riskScore > 0.4 ? 'medium' : 'low', reasons: ['Velocity check passed'], message: 'Transaction assessed', checkedAt: new Date().toISOString() };
-  },
-
-  getStats: async () => {
-    const real = await tryFetch<any>('/safeguard/stats');
-    if (real && real.totalChecks > 0) return real;
-    
-    // Seed the stats based on any recent upload in localStorage, or use base mock
-    const lastUploadSize = Number(localStorage.getItem('last_upload_records')) || 0;
-    return { 
-      totalChecks: 15842 + lastUploadSize, 
-      totalFlagged: 432 + Math.floor(lastUploadSize * 0.1), 
-      flaggedRecipients: 89, 
-      blacklistedRecipients: 12, 
-      flagRate: 0.0273 
-    };
-  },
-
-  getHistory: async (senderId: string, limit = 50) => {
-    const real = await tryFetch<any>(`/safeguard/history?sender_id=${senderId}&limit=${limit}`);
-    return real || { history: [] };
-  },
-};
-
-// ─── Agent API — returns full InvestigationReport ─────────────────────────────
-
-function makeMockInvestigation(walletId: string): InvestigationReport {
-  const isHighRisk = /mule|shell|funnel|mixer|collector|dark/.test(walletId.toLowerCase());
-  const riskScore = isHighRisk ? 0.88 + Math.random() * 0.1 : 0.25 + Math.random() * 0.3;
-  const riskLevel = riskScore > 0.8 ? 'critical' : riskScore > 0.6 ? 'high' : riskScore > 0.4 ? 'medium' : 'low';
-  const now = new Date().toISOString();
-  return {
-    investigationId: `inv_${Date.now()}`,
-    walletId,
-    timestamp: now,
-    status: 'completed',
-    totalDurationMs: 847 + Math.random() * 400,
-    stepsCompleted: 6,
-    steps: [
-      { tool: 'GNN Risk Scorer',        description: `Running GATv2 model on ${walletId}`,                      result: { score: riskScore, confidence: 0.94 },                            durationMs: 120, timestamp: now },
-      { tool: 'Pattern Detector',       description: 'Scanning for smurfing, layering, fan-in patterns',         result: { patterns: isHighRisk ? ['smurfing', 'fan-out'] : ['low_activity'] }, durationMs: 95,  timestamp: now },
-      { tool: 'FATF Red Flag Mapper',   description: 'Mapping detected patterns to FATF typologies',            result: { flags: isHighRisk ? ['TR-05 Structuring', 'TR-08 Layering'] : [] }, durationMs: 60,  timestamp: now },
-      { tool: 'Transaction Context',    description: 'Fetching 90-day transaction window',                      result: { txCount: Math.floor(riskScore * 50), avgAmount: Math.floor(riskScore * 9800) }, durationMs: 200, timestamp: now },
-      { tool: 'Cross-Platform Scanner', description: 'Checking UPI, crypto, and SWIFT rails',                  result: { crossPlatform: isHighRisk, platforms: isHighRisk ? ['UPI', 'ETH', 'BTC'] : ['UPI'] }, durationMs: 180, timestamp: now },
-      { tool: 'watsonx.ai Synthesis',   description: 'IBM Granite-3-8b generating SAR narrative',              result: { generated: true, model: 'ibm/granite-3-8b-instruct' },            durationMs: 192, timestamp: now },
-    ],
-    summary: {
-      riskScore,
-      riskLevel,
-      patternsFound: isHighRisk ? 3 : 1,
-      fatfFlagsTriggered: isHighRisk ? 2 : 0,
-      crossPlatformDetected: isHighRisk,
-      recommendedAction: isHighRisk ? 'FILE_SAR' : riskScore > 0.5 ? 'ESCALATE' : 'MONITOR',
-      poweredBy: 'IBM watsonx.ai (granite-3-8b-instruct) + SmurfPakad GATv2',
-    },
-    report: `## Autonomous AML Investigation Report\n**Wallet:** ${walletId}\n**Risk Score:** ${(riskScore * 100).toFixed(1)}% (${riskLevel.toUpperCase()})\n\n${isHighRisk ? `### ⚠️ Critical Findings\nThis wallet exhibits classic **smurfing** behavior:\n- Receives sub-threshold transactions from 6 unique sources\n- Immediately redistributes to 3 offshore collection wallets\n- Cross-platform activity detected across UPI and crypto rails\n- FATF TR-05 and TR-08 triggered\n\n### Recommended Action\n**FILE SAR** with FIU-IND within 7 days. Freeze wallet under PMLA 2002.` : `### ✅ Low Risk Profile\nNo significant AML patterns detected. Standard monitoring recommended.`}`,
-  };
-}
+// ─── Agent API ────────────────────────────────────────────────────────────────
 
 export const agentApi = {
-  investigate: async (walletId: string, _context?: any): Promise<InvestigationReport> => {
-    const real = await tryFetch<InvestigationReport>('/agent/investigate', { method: 'POST', body: JSON.stringify({ wallet_id: walletId, context: _context }) }, 6000);
-    if (real && real.investigationId) return real;
-    await new Promise(r => setTimeout(r, 800 + Math.random() * 600));
-    return makeMockInvestigation(walletId);
+  investigate: async (walletId: string) => {
+    const real = await tryFetch<any>('/agent/investigate', { method: 'POST', body: JSON.stringify({ wallet_id: walletId }) }, 12000);
+    if (real) return real;
+
+    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+    const seed = walletId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const riskScore = 0.55 + (seed % 45) / 100;
+    return {
+      investigationId: `INV-${Date.now().toString(36).toUpperCase()}`,
+      walletId,
+      timestamp: new Date().toISOString(),
+      status: 'completed',
+      totalDurationMs: 1800 + Math.random() * 800,
+      stepsCompleted: 6,
+      steps: [
+        { tool: 'GNN Risk Scorer',        description: 'Running GATv2 model inference',                  result: { riskScore },                               durationMs: 312, timestamp: new Date().toISOString() },
+        { tool: 'Pattern Detector',       description: 'Scanning structural transaction patterns',        result: { patterns: 3 },                             durationMs: 245, timestamp: new Date().toISOString() },
+        { tool: 'FATF Red Flag Mapper',   description: 'Mapping to FATF typology database',              result: { flags: ['TR-05', 'TR-08'] },               durationMs: 180, timestamp: new Date().toISOString() },
+        { tool: 'Transaction Context',    description: 'Fetching 90-day transaction history',            result: { transactions: 47 },                        durationMs: 290, timestamp: new Date().toISOString() },
+        { tool: 'Cross-Platform Scanner', description: 'Checking UPI, crypto, and SWIFT rails',          result: { crossPlatform: riskScore > 0.7 },          durationMs: 340, timestamp: new Date().toISOString() },
+        { tool: 'watsonx.ai Synthesis',   description: 'Generating IBM Granite investigation report',   result: { model: 'granite-3-3-8b-instruct' },        durationMs: 430, timestamp: new Date().toISOString() },
+      ],
+      summary: {
+        riskScore,
+        riskLevel: riskScore >= 0.8 ? 'critical' : riskScore >= 0.6 ? 'high' : 'medium',
+        patternsFound: 2 + (seed % 3),
+        fatfFlagsTriggered: riskScore > 0.7 ? 3 : 1,
+        crossPlatformDetected: riskScore > 0.7,
+        recommendedAction: riskScore >= 0.8 ? 'FILE_SAR' : riskScore >= 0.6 ? 'ESCALATE' : 'MONITOR',
+        poweredBy: 'IBM watsonx.ai granite-3-3-8b-instruct',
+      },
+      report: `INVESTIGATION REPORT — ${walletId}\n\nRisk Score: ${Math.round(riskScore * 100)}%\nPatterns detected: Fan-out structuring, threshold proximity evasion.\nFATF Typologies: TR-05, TR-08.\nRecommendation: ${riskScore >= 0.8 ? 'FILE SAR immediately.' : 'Escalate for enhanced due diligence.'}\n\nPowered by IBM watsonx.ai + SmurfPakad GATv2.`,
+    };
   },
 
-  chat: async (message: string, walletId?: string, _context?: any): Promise<{ message: string; report?: InvestigationReport }> => {
-    const real = await tryFetch<any>('/agent/chat', { method: 'POST', body: JSON.stringify({ message, wallet_id: walletId, context: _context }) }, 6000);
-    if (real) return { message: real.response || real.message || 'Understood.', report: real.report };
-    await new Promise(r => setTimeout(r, 500));
+  chat: async (message: string) => {
+    const real = await tryFetch<any>('/agent/chat', { method: 'POST', body: JSON.stringify({ message }) }, 10000);
+    if (real) return real;
     return { message: 'SmurfPakad Agent: I can investigate specific wallets or explain AML patterns. Try saying "investigate mule_wallet_x@paytm" or ask about smurfing detection methodology.' };
   },
 
@@ -760,7 +715,7 @@ export function createWebSocketConnection(
   return ws;
 }
 
-export type WSMessage = 
+export type WSMessage =
   | { type: 'upload_progress'; uploadId: string; progress: number; status: string; message?: string }
   | { type: 'analysis_update'; uploadId: string; status: string; data?: any }
   | { type: 'safeguard_alert'; data: any }

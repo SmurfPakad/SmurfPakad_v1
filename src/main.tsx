@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import './i18n/index.ts'   // ← initialise i18n before first render
 
 // Suppress WebGL extension errors in environments that block them (e.g. Brave Shields)
 // This prevents the Vite red overlay from crashing the app UX for non-critical 3D components.

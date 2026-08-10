@@ -261,7 +261,9 @@ export default function AgentChat() {
           ? { ...m, content: '⚠️ Agent error. Backend may be offline. Try again.', isLoading: false }
           : m
       ));
+    } finally {
       setIsLoading(false);
+    }
   };
 
   const quickActions = [

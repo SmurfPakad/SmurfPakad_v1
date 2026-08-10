@@ -13,6 +13,8 @@ import { dashboardApi, uploadApi, analysisApi, type Upload } from "@/lib/api";
 import { usePageEntrance, useStaggerCards, useCountUp } from "@/hooks/useGSAP";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import SmurfingAttackDemo from "@/components/SmurfingAttackDemo";
+import { useTranslation } from "react-i18next";
+
 
 interface DashboardStats {
   totalTransactions: number;
@@ -23,6 +25,7 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentUploads, setRecentUploads] = useState<Upload[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,7 +124,7 @@ export default function Dashboard() {
 
   const statsDisplay = [
     {
-      title: "Total Transactions Analyzed",
+      title: t('dashboard.total_transactions'),
       value: stats ? formatNumber(stats.totalTransactions) : "—",
       change: "+12.5%",
       icon: Activity,
@@ -129,7 +132,7 @@ export default function Dashboard() {
       bgColor: "bg-blue-100",
     },
     {
-      title: "Suspicious Patterns Detected",
+      title: t('dashboard.patterns_detected'),
       value: stats ? formatNumber(stats.suspiciousPatterns) : "—",
       change: "+4.2%",
       icon: AlertTriangle,
@@ -137,7 +140,7 @@ export default function Dashboard() {
       bgColor: "bg-red-100",
     },
     {
-      title: "Risk Score Improvement",
+      title: t('dashboard.model_accuracy'),
       value: stats ? `${stats.riskScore}%` : "—",
       change: "+8.1%",
       icon: TrendingUp,
@@ -145,7 +148,7 @@ export default function Dashboard() {
       bgColor: "bg-green-100",
     },
     {
-      title: "Addresses Monitored",
+      title: t('dashboard.flagged_wallets'),
       value: stats ? formatNumber(stats.addressesMonitored) : "—",
       change: "+18.3%",
       icon: Users,
@@ -153,6 +156,7 @@ export default function Dashboard() {
       bgColor: "bg-purple-100",
     },
   ];
+
 
   return (
     <DashboardLayout>
@@ -168,26 +172,27 @@ export default function Dashboard() {
               <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
               <span className="text-xs text-red-400 font-semibold uppercase tracking-widest">LIVE MONITORING</span>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">AML Intelligence Hub</h2>
-            <p className="mt-2 text-gray-700 dark:text-gray-300">Real-time cross-platform laundering detection across Paytm, PhonePe, and GPay networks.</p>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{t('dashboard.title')}</h2>
+            <p className="mt-2 text-gray-700 dark:text-gray-300">{t('dashboard.subtitle')}</p>
             <div className="mt-4 flex gap-3">
               <Link to="/cryptoflow/agent">
                 <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                  <Brain className="h-4 w-4 mr-2" /> AI Agent
+                  <Brain className="h-4 w-4 mr-2" /> {t('nav.agent_chat')}
                 </Button>
               </Link>
               <Link to="/cryptoflow/federated">
                 <Button size="sm" variant="outline" className="border-purple-500/40 text-purple-400">
-                  <Lock className="h-4 w-4 mr-2" /> Federated
+                  <Lock className="h-4 w-4 mr-2" /> {t('nav.federated')}
                 </Button>
               </Link>
               <Link to="/cryptoflow/governance">
                 <Button size="sm" variant="outline" className="border-green-500/40 text-green-400">
-                  <Scale className="h-4 w-4 mr-2" /> Governance
+                  <Scale className="h-4 w-4 mr-2" /> {t('nav.governance')}
                 </Button>
               </Link>
             </div>
           </div>
+
           <div className="relative rounded-xl overflow-hidden border border-white/10">
             <div className="absolute top-3 left-4 z-10 text-xs text-white/60 font-semibold uppercase tracking-widest">3D Risk Network</div>
             <FloatingRiskOrbs3D height="300px" orbs={orbsData.length > 0 ? orbsData : undefined} />

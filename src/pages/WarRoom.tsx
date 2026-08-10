@@ -26,10 +26,14 @@ import {
   BookOpen,
   Download,
   Sparkles,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { ibmAiApi, type AnalystBrief } from "@/lib/api";
 import { generateSARPdf } from "@/components/SARPdfGenerator";
 import MoneyFlowSankey from "@/components/MoneyFlowSankey";
+import { speakText, stopSpeaking } from "@/lib/elevenlabs";
+import { useTranslation } from "react-i18next";
 
 // ============================================================================
 // Types
@@ -414,6 +418,9 @@ export default function WarRoom() {
   const [sarGenerating, setSarGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<"xai" | "fatf" | "brief" | "flow">("xai");
   const autoBriefFired = useRef(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const { t } = useTranslation();
 
   // Auto-select node — if coming from a Live Alert, use that wallet, else default demo node
   useEffect(() => {
@@ -518,6 +525,37 @@ export default function WarRoom() {
     }
   }, [selectedNode]);
 
+  // ── ElevenLabs: Play/Stop Audio Brief ────────────────────────────────────
+  const handlePlayAudio = useCallback(async () => {
+    if (!analystBrief) return;
+    setAudioLoading(true);
+    const script = [
+      analystBrief.brief,
+      analystBrief.riskAssessment,
+      ...(analystBrief.recommendations?.slice(0, 3) || []),
+    ].filter(Boolean).join('. ');
+    try {
+      await speakText(
+        script,
+        {},
+        () => { setAudioPlaying(true);  setAudioLoading(false); },
+        () => { setAudioPlaying(false); setAudioLoading(false); },
+      );
+    } catch {
+      setAudioPlaying(false);
+      setAudioLoading(false);
+    }
+  }, [analystBrief]);
+
+  const handleStopAudio = useCallback(() => {
+    stopSpeaking();
+    setAudioPlaying(false);
+    setAudioLoading(false);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => () => stopSpeaking(), []);
+
   // ── Generate & download SAR PDF (FEATURE-001) ────────────────────────────
   const handleGenerateSAR = useCallback(async () => {
     if (!selectedNode) return;
@@ -592,32 +630,51 @@ export default function WarRoom() {
             </p>
           </div>
           {selectedNode && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* IBM AI Brief */}
               <Button
                 variant="outline"
                 className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
                 onClick={generateBrief}
                 disabled={briefLoading}
               >
-                {briefLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4 mr-2" />
-                )}
-                IBM AI Brief
+                {briefLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                {t('warroom.generate_brief')}
               </Button>
+
+              {/* ElevenLabs Audio Brief — shows only when brief is ready */}
+              {analystBrief && (
+                <Button
+                  variant="outline"
+                  className={`transition-all ${
+                    audioPlaying
+                      ? 'border-green-500/50 text-green-300 bg-green-500/10 animate-pulse'
+                      : 'border-purple-500/30 text-purple-400 hover:bg-purple-500/10'
+                  }`}
+                  onClick={audioPlaying ? handleStopAudio : handlePlayAudio}
+                  disabled={audioLoading}
+                  title="ElevenLabs Text-to-Speech"
+                >
+                  {audioLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : audioPlaying ? (
+                    <VolumeX className="h-4 w-4 mr-2" />
+                  ) : (
+                    <Volume2 className="h-4 w-4 mr-2" />
+                  )}
+                  {audioLoading ? 'Loading…' : audioPlaying ? t('warroom.stop_audio') : t('warroom.play_audio')}
+                </Button>
+              )}
+
+              {/* Generate SAR */}
               <Button
                 variant="outline"
                 className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
                 onClick={handleGenerateSAR}
                 disabled={sarGenerating}
               >
-                {sarGenerating ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4 mr-2" />
-                )}
-                {sarGenerating ? "Generating..." : "Generate SAR"}
+                {sarGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                {sarGenerating ? t('warroom.generating') : t('warroom.generate_sar')}
               </Button>
             </div>
           )}
@@ -825,13 +882,30 @@ export default function WarRoom() {
                     </div>
                   ) : analystBrief ? (
                     <>
-                      {/* Powered by badge */}
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                        <Brain className="h-4 w-4 text-blue-400" />
-                        <span className="text-xs text-blue-300">
-                          Generated by{" "}
-                          <strong>{analystBrief.generatedBy}</strong>
-                        </span>
+                      {/* Powered by badge + audio waveform indicator */}
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <div className="flex items-center gap-2">
+                          <Brain className="h-4 w-4 text-blue-400" />
+                          <span className="text-xs text-blue-300">
+                            Generated by <strong>{analystBrief.generatedBy}</strong>
+                          </span>
+                        </div>
+                        {/* Live waveform when audio is playing */}
+                        {audioPlaying && (
+                          <div className="flex items-end gap-[2px] h-5" title="AI Analyst Speaking">
+                            {[3,5,7,4,6,8,3,5].map((h, i) => (
+                              <span
+                                key={i}
+                                className="w-[3px] rounded-full bg-green-400"
+                                style={{
+                                  height: `${h * 2}px`,
+                                  animation: `waveBar 0.${6+i}s ease-in-out infinite alternate`,
+                                  animationDelay: `${i * 80}ms`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Summary */}
