@@ -228,7 +228,6 @@ export default function Upload() {
   };
 
   const handleAnalysisComplete = (results: any) => {
-    console.log('Analysis complete:', results);
   };
 
   // Auto-navigate to analysis page after upload completes (when not showing live analysis)

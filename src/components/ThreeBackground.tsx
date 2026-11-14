@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type * as ThreeTypes from 'three';
 
 interface ThreeBackgroundProps {
   variant?: 'particles' | 'cubes' | 'waves';
@@ -33,7 +34,7 @@ const ThreeBackground = ({ variant = 'particles' }: ThreeBackgroundProps) => {
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         if (containerRef.current) containerRef.current.appendChild(renderer.domElement);
 
-        const objects: THREE.Object3D[] = [];
+        const objects: ThreeTypes.Object3D[] = [];
 
         if (variant === 'particles') {
           const geo = new THREE.BufferGeometry();
@@ -91,12 +92,12 @@ const ThreeBackground = ({ variant = 'particles' }: ThreeBackgroundProps) => {
           } else if (variant === 'cubes') {
             objects.forEach((c, i) => { c.rotation.x += 0.01; c.rotation.y += 0.01; c.position.y += Math.sin(time + i) * 0.02; });
           } else if (variant === 'waves') {
-            const plane = objects[0] as THREE.Mesh;
-            const arr = (plane.geometry as THREE.PlaneGeometry).attributes.position.array as Float32Array;
+            const plane = objects[0] as ThreeTypes.Mesh;
+            const arr = (plane.geometry as ThreeTypes.PlaneGeometry).attributes.position.array as Float32Array;
             for (let i = 0; i < arr.length; i += 3) {
               arr[i + 2] = Math.sin(arr[i] * 0.1 + time) * 2 + Math.cos(arr[i + 1] * 0.1 + time) * 2;
             }
-            (plane.geometry as THREE.PlaneGeometry).attributes.position.needsUpdate = true;
+            (plane.geometry as ThreeTypes.PlaneGeometry).attributes.position.needsUpdate = true;
             plane.rotation.z += 0.002;
           }
           renderer.render(scene, camera);
@@ -122,7 +123,7 @@ const ThreeBackground = ({ variant = 'particles' }: ThreeBackgroundProps) => {
           objects.forEach(obj => {
             if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) {
               obj.geometry.dispose();
-              (obj.material as THREE.Material).dispose();
+              (obj.material as ThreeTypes.Material).dispose();
             }
           });
         };

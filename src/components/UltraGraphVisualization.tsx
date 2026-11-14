@@ -46,7 +46,7 @@ interface GraphEdge {
 }
 
 interface GraphData {
-  meta: {
+  meta?: {
     k: number;
     hop: number;
     total_nodes: number;
@@ -121,7 +121,9 @@ type RawNode = GraphNode & {
 };
 
 const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
-  const graphRef = useRef<ForceGraph2DInstance | null>(null);
+  // react-force-graph 2D and 3D expose different method sets; we only call the shared ones
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Static demo data - defined outside component to prevent recreation
@@ -213,7 +215,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [centralityMode, setCentralityMode] = useState<'none' | 'pagerank' | 'betweenness' | 'closeness' | 'degree'>('none');
   const [showCommunities, setShowCommunities] = useState(false);
-  const [networkStats, setNetworkStats] = useState<Record<string, unknown> | null>(null);
+  const [networkStats, setNetworkStats] = useState<Record<string, string | number> | null>(null);
 
   // New states for hover tooltip and trace all paths
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
@@ -237,17 +239,45 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     const maxPossibleEdges = totalNodes * (totalNodes - 1);
     const density = totalEdges / maxPossibleEdges;
 
-    // Calculate average clustering coefficient (simplified)
-    const avgClustering = nodes.reduce((sum, node) => {
-      const neighbors = edges.filter(e =>
-        (typeof e.source === 'string' ? e.source : e.source?.id) === node.id ||
-        (typeof e.target === 'string' ? e.target : e.target?.id) === node.id
-      ).length;
-      return sum + (neighbors > 1 ? neighbors / (neighbors - 1) : 0);
-    }, 0) / totalNodes;
+    // Undirected adjacency for structural statistics
+    const adj = new Map<string, Set<string>>();
+    nodes.forEach(n => adj.set(n.id, new Set()));
+    edges.forEach(e => {
+      const u = typeof e.source === 'string' ? e.source : e.source?.id;
+      const v = typeof e.target === 'string' ? e.target : e.target?.id;
+      if (!u || !v || u === v) return;
+      if (!adj.has(u)) adj.set(u, new Set());
+      if (!adj.has(v)) adj.set(v, new Set());
+      adj.get(u)!.add(v);
+      adj.get(v)!.add(u);
+    });
 
-    // Diameter (simplified - using max degree separation as approximation)
-    const diameter = 4; // Simplified for demo
+    // Average local clustering coefficient: share of a node's neighbour pairs that are linked
+    let clusteringSum = 0;
+    adj.forEach(nb => {
+      const k = nb.size;
+      if (k < 2) return;
+      const list = Array.from(nb);
+      let links = 0;
+      for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) if (adj.get(list[i])?.has(list[j])) links++;
+      clusteringSum += (2 * links) / (k * (k - 1));
+    });
+    const avgClustering = clusteringSum / totalNodes;
+
+    // Diameter: longest shortest path within any connected component (BFS; sampled above 600 nodes)
+    const ids = Array.from(adj.keys());
+    const sources = ids.length > 600 ? ids.filter((_, i) => i % Math.ceil(ids.length / 600) === 0) : ids;
+    let diameter = 0;
+    for (const src of sources) {
+      const dist = new Map<string, number>([[src, 0]]);
+      const queue = [src];
+      for (let qi = 0; qi < queue.length; qi++) {
+        const cur = queue[qi];
+        const d = dist.get(cur)!;
+        if (d > diameter) diameter = d;
+        adj.get(cur)!.forEach(nx => { if (!dist.has(nx)) { dist.set(nx, d + 1); queue.push(nx); } });
+      }
+    }
 
     // Community count
     const communities = new Set(nodes.map(n => n.community)).size;
@@ -803,7 +833,6 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
       source: typeof edge.source === 'object' ? (edge.source as any)?.id ?? '' : String(edge.source),
       target: typeof edge.target === 'object' ? (edge.target as any)?.id ?? '' : String(edge.target),
     }));
-    console.log('[Graph] nodes:', nodes.length, 'links:', links.length, links.slice(0,3));
     return { nodes, links };
   }, [filteredNodes, filteredEdges]);
 
@@ -819,8 +848,8 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     if (tracedEdges.has(edgeKey)) return 6;
 
     const isInPath = highlightedPath.length > 0 &&
-      highlightedPath.includes(link.source.id || link.source) &&
-      highlightedPath.includes(link.target.id || link.target);
+      highlightedPath.includes(sourceId) &&
+      highlightedPath.includes(targetId);
     return isInPath ? 4 : (link.high_risk ? 2 : 0);
   }, [highlightedPath, tracedEdges]);
 

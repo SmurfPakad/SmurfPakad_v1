@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
     base: "/cryptoflow/",
@@ -21,13 +20,20 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        entryFileNames: 'index.js',
-        chunkFileNames: 'chunk-[name].js',
+        entryFileNames: 'index-[hash].js',
+        chunkFileNames: 'chunk-[name]-[hash].js',
+        // Heavy libraries in their own long-cacheable chunks, loaded only by pages that use them
+        manualChunks: {
+          three: ['three', '@react-three/fiber', '@react-three/drei'],
+          graph: ['react-force-graph-2d', 'react-force-graph-3d'],
+          charts: ['recharts'],
+          pdf: ['jspdf'],
+        },
         assetFileNames: (assetInfo) => {
           if (assetInfo.name && assetInfo.name.endsWith('.css')) {
-            return 'index.css';
+            return 'index-[hash].css';
           }
-          return 'asset-[name][extname]';
+          return 'asset-[name]-[hash][extname]';
         },
       },
     },

@@ -12,7 +12,7 @@ import {
   AreaChart, Area, ReferenceLine
 } from 'recharts';
 import { usePageEntrance, useScrollReveal } from '@/hooks/useGSAP';
-import launderingGraph from '@/images/laundering_graph.png';
+import launderingGraph from '@/images/laundering_graph.webp';
 
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 

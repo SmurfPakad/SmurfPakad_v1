@@ -9,7 +9,7 @@ export const faqItems = [
   },
   {
     question: "How accurate is the detection system?",
-    answer: "Our GNN-powered system achieves 98.5% accuracy in detecting money laundering patterns. The Suspicion Score algorithm uses centrality measures and connection analysis to known illicit nodes, providing confidence levels for each detected pattern."
+    answer: "On the Elliptic2 benchmark our Temperature-Gated GATv2 reaches F1 0.564 and PR-AUC 0.604 on held-out data, beating the published GATv2 baseline (0.556 / 0.591). We report F1 and PR-AUC instead of accuracy because only 2.27% of subgraphs are suspicious. On payment ledgers every flagged wallet comes with the red flags that triggered it, so analysts can verify each alert."
   },
   {
     question: "What blockchain networks are supported?",

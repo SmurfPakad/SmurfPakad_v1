@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import gsap from "gsap";
 
 interface Alert {
+  sample?: boolean;
   id: string;
   walletId: string;
   riskScore: number;
@@ -30,10 +31,14 @@ export default function LiveAlertBanner() {
   const wsRef = useRef<WebSocket | null>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const unmounted = useRef(false);
 
   const connectWS = () => {
+    const token = localStorage.getItem("authToken");
+    // The backend's /ws endpoint requires a real JWT; offline demo sessions skip the socket.
+    if (!token || token === "offline-demo" || unmounted.current) return;
     try {
-      const ws = new WebSocket(`${WS_URL}/ws/alerts`);
+      const ws = new WebSocket(`${WS_URL}/ws?token=${encodeURIComponent(token)}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -43,7 +48,9 @@ export default function LiveAlertBanner() {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
+          const msg = JSON.parse(event.data);
+          // Backend broadcasts { type: "safeguard_alert", data: {...} }
+          const data = msg.type === "safeguard_alert" ? { ...msg.data, type: "high_risk_alert" } : msg;
           if (data.type === "high_risk_alert" || data.riskScore > 0.75) {
             const alert: Alert = {
               id: data.id || crypto.randomUUID(),
@@ -61,8 +68,8 @@ export default function LiveAlertBanner() {
 
       ws.onclose = () => {
         setConnected(false);
-        // Reconnect after 5s silently
-        reconnectTimer.current = setTimeout(connectWS, 5000);
+        // Reconnect after 5s silently — but never after the banner unmounted
+        if (!unmounted.current) reconnectTimer.current = setTimeout(connectWS, 5000);
       };
 
       ws.onerror = () => {
@@ -74,8 +81,10 @@ export default function LiveAlertBanner() {
   };
 
   useEffect(() => {
+    unmounted.current = false;
     connectWS();
     return () => {
+      unmounted.current = true;
       wsRef.current?.close();
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     };
@@ -85,16 +94,9 @@ export default function LiveAlertBanner() {
     if (!bannerRef.current) return;
     gsap.fromTo(
       bannerRef.current,
-      { y: -60, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.4)" }
+      { y: -6, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.25, ease: "power2.out" }
     );
-    // Pulse effect
-    gsap.to(bannerRef.current, {
-      boxShadow: "0 0 30px rgba(239,68,68,0.6)",
-      duration: 0.4,
-      repeat: 3,
-      yoyo: true,
-    });
   };
 
   const dismiss = (id: string) => {
@@ -109,6 +111,7 @@ export default function LiveAlertBanner() {
       if (!connected && alerts.length === 0) {
         const demoAlert: Alert = {
           id: "demo-001",
+          sample: true,
           walletId: "PTM-0x8f4a...2b91",
           riskScore: 0.94,
           platform: "Paytm",
@@ -125,58 +128,38 @@ export default function LiveAlertBanner() {
   if (visibleAlerts.length === 0) return null;
 
   return (
-    <div ref={bannerRef} className="space-y-2 mb-4">
+    <div ref={bannerRef} className="space-y-2">
       {visibleAlerts.map((alert) => (
         <div
           key={alert.id}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl border border-red-500/40 bg-red-500/10 backdrop-blur-sm"
-          style={{ boxShadow: "0 0 20px rgba(239,68,68,0.2)" }}
+          className="flex items-center gap-3 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-4 py-3"
         >
-          {/* Pulse dot */}
-          <div className="relative flex-shrink-0">
-            <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
-            <div className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-red-500 animate-ping opacity-50" />
-          </div>
-
-          {/* Alert icon */}
-          <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
-
-          {/* Message */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-red-400 uppercase tracking-wider">
-                🚨 LIVE ALERT
-              </span>
-              <span className="text-xs text-white/60">
-                {new Date(alert.timestamp).toLocaleTimeString()}
-              </span>
-            </div>
-            <p className="text-sm text-white font-medium truncate">
-              <span className="text-red-300 font-mono">{alert.walletId}</span>
-              {" — "}
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-red-600 dark:text-red-300">
+              {alert.sample ? "Sample alert" : "Live alert"} · <span className="font-mono">{new Date(alert.timestamp).toLocaleTimeString()}</span>
+            </p>
+            <p className="truncate text-sm text-zinc-800 dark:text-zinc-100">
+              <span className="font-mono">{alert.walletId}</span>
+              <span className="text-zinc-500"> · </span>
               {alert.message}
             </p>
           </div>
-
-          {/* Risk badge */}
-          <span className="flex-shrink-0 px-2 py-0.5 text-xs font-bold rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
-            {(alert.riskScore * 100).toFixed(0)}% RISK
+          <span className="shrink-0 font-mono text-sm tabular-nums text-zinc-700 dark:text-zinc-200">
+            {(alert.riskScore * 100).toFixed(0)}
           </span>
-
-          {/* Investigate CTA */}
           <Link
-            to={`/cryptoflow/warroom`}
-            className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors"
+            to={`/cryptoflow/warroom?walletId=${encodeURIComponent(alert.walletId)}&riskScore=${alert.riskScore}&platform=${encodeURIComponent(alert.platform)}`}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-black/[0.1] px-2.5 py-1.5 text-xs text-zinc-700 transition-colors hover:bg-black/[0.04] dark:border-white/[0.12] dark:text-zinc-200 dark:hover:bg-white/[0.06]"
           >
-            Investigate <ArrowRight className="h-3 w-3" />
+            Investigate <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
           </Link>
-
-          {/* Dismiss */}
           <button
             onClick={() => dismiss(alert.id)}
-            className="flex-shrink-0 p-1 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+            className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 dark:hover:bg-white/[0.06] dark:hover:text-white"
+            aria-label="Dismiss alert"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" strokeWidth={1.5} />
           </button>
         </div>
       ))}

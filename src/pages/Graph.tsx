@@ -1,3 +1,4 @@
+import type React from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,14 @@ interface UploadItem {
   uploadedAt?: string;
 }
 
+type UltraGraphData = NonNullable<React.ComponentProps<typeof UltraGraphVisualization>['data']>;
+
 // Transform backend graph data to match UltraGraphVisualization expected format
-function transformGraphData(backendData: GraphData): GraphData {
-  if (!backendData) return backendData;
-  
+function transformGraphData(backendData: GraphData): UltraGraphData {
+  if (!backendData) return backendData as unknown as UltraGraphData;
+
   return {
-    ...backendData,
+    ...(backendData as unknown as UltraGraphData),
     nodes: (backendData.nodes || []).map((node, index) => ({
       ...node,
       // Add label for display (use id as label if not present)
@@ -51,18 +54,18 @@ function transformGraphData(backendData: GraphData): GraphData {
         closeness: 0.5,
         degree: (node.degree?.in || 0) + (node.degree?.out || 0)
       },
-      // Add timestamp if not present
-      timestamp: node.timestamp ?? Date.now() - Math.random() * 10000000000,
+      // Only real timestamps: an invented one made the time filter hide every edge
+      timestamp: node.timestamp != null ? Number(node.timestamp) : undefined,
     })),
-    edges: (backendData.edges || []).map(edge => ({
+    edges: (backendData.edges || backendData.links || []).map(edge => ({
       ...edge,
       // Ensure weight is set
       weight: edge.weight ?? 1,
       // Ensure high_risk is set
       high_risk: edge.high_risk ?? (edge.suspicious === true),
       // Add flow direction
-      flow: edge.flow ?? 'outgoing',
-      timestamp: edge.timestamp ?? Date.now(),
+      flow: String(edge.flow ?? 'outgoing'),
+      timestamp: typeof edge.timestamp === 'number' ? edge.timestamp : (edge.timestamp ? Date.parse(String(edge.timestamp)) || undefined : undefined),
     })),
     // Ensure summary exists
     summary: backendData.summary ?? {
@@ -72,7 +75,7 @@ function transformGraphData(backendData: GraphData): GraphData {
       avg_suspicious_score: 0,
       model_confidence: 'low'
     }
-  };
+  } as UltraGraphData;
 }
 
 export default function Graph() {
@@ -80,7 +83,7 @@ export default function Graph() {
   const navigate = useNavigate();
   const uploadIdParam = searchParams.get('uploadId');
   
-  const [graphData, setGraphData] = useState<GraphData | null>(null);
+  const [graphData, setGraphData] = useState<UltraGraphData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useDemo, setUseDemo] = useState(true); // Default to demo mode

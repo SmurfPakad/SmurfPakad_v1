@@ -55,6 +55,10 @@ export interface Pattern {
 export interface SuspiciousAddress {
   address: string;
   riskScore: number;
+  suspiciousScore?: number;
+  totalVolume?: number;
+  firstSeen?: string;
+  lastSeen?: string;
   riskLevel?: string;
   patterns?: string[];
   flags?: string[];
@@ -76,12 +80,26 @@ export interface GraphNode {
   color?: string;
   type?: string;
   suspicious_score?: number;
+  suspiciousScore?: number;
+  risk_level?: string;
+  riskScore?: number;
+  reasons?: string[];
+  flags?: string[];
+  predictedLabel?: string;
+  isSeedNode?: boolean;
+  mlScore?: number;
+  community?: number | string;
+  centrality?: Record<string, number>;
+  timestamp?: number | string;
   degree?: { in: number; out: number };
 }
 
 export interface GraphLink {
   source: string;
   target: string;
+  high_risk?: boolean;
+  flow?: number;
+  timestamp?: string | number;
   value?: number;
   weight?: number;
   label?: string;
@@ -91,6 +109,8 @@ export interface GraphLink {
 export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
+  edges?: GraphLink[];
+  isDemo?: boolean;
   metadata?: { totalNodes: number; totalEdges: number; suspiciousCount: number };
   summary?: {
     top_illicit_ratio: number;
@@ -128,6 +148,7 @@ export interface AnalystBrief {
   recommendations: string[];
   summary?: string;
   actionItems?: string[];
+  timestamp?: string;
 }
 
 export interface SafeguardAlert {
@@ -232,20 +253,33 @@ async function tryFetch<T>(endpoint: string, options: RequestInit = {}, timeoutM
 
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
+const OFFLINE_DEMO_CODE = 'offline_demo';
+const OFFLINE_DEMO_SESSION = {
+  token: 'offline-demo',
+  user: { id: 'offline-demo', name: 'Demo Analyst (offline)', email: 'analyst@smurfpakad.demo' },
+};
+
 export const authApi = {
   getGoogleAuthUrl: async (): Promise<{ authorization_url: string }> => {
+    // Backend decides: real Google OAuth when configured, otherwise its demo sign-in.
     const real = await tryFetch<{ authorization_url: string }>('/auth/google');
     if (real) return real;
-    const clientId = '341547498123-g9l1ichk7itcceh6g2ab6app7fb3s2t1.apps.googleusercontent.com';
-    const redirectUri = encodeURIComponent(window.location.origin + '/cryptoflow/auth/callback');
-    return { authorization_url: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${encodeURIComponent('email profile openid')}&prompt=select_account` };
+    // Backend unreachable: explore the UI with an offline demo session (sample data only).
+    return { authorization_url: `${window.location.origin}/cryptoflow/auth/callback?code=${OFFLINE_DEMO_CODE}` };
   },
   handleCallback: async (code: string, _provider = 'google') => {
+    if (code === OFFLINE_DEMO_CODE) return OFFLINE_DEMO_SESSION;
     // Authorization Code Flow: send code to backend, backend exchanges for tokens
-    const res = await fetch(`${API_V1}/auth/google/callback?code=${encodeURIComponent(code)}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${API_V1}/auth/google/callback?code=${encodeURIComponent(code)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch {
+      if (code === 'mock_auth_code') return OFFLINE_DEMO_SESSION;
+      throw new Error('Cannot reach the SmurfPakad API');
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: 'Authentication failed' }));
       throw new Error(err.detail || 'Authentication failed');
@@ -267,8 +301,8 @@ export const authApi = {
 export const dashboardApi = {
   getStats: async () => {
     const real = await tryFetch<any>('/dashboard/stats');
-    if (real && (real.stats?.totalTransactions > 0 || real.totalTransactions > 0)) return real;
-    return { stats: { totalTransactions: 15842, total_transactions: 15842, suspiciousCount: 432, suspicious_count: 432, riskScore: 0.15, addressesMonitored: 24500, activeCases: 18, total_uploads: 4 } };
+    if (real?.stats) return real;       // real numbers, even when the account is still empty
+    return { isDemo: true, stats: { totalTransactions: 15842, total_transactions: 15842, suspiciousCount: 432, suspicious_count: 432, riskScore: 0.15, addressesMonitored: 24500, activeCases: 18, total_uploads: 4 } };
   },
 };
 
@@ -420,15 +454,21 @@ function generateSeededMockData(uploadId: string) {
   return { patterns, addresses: mockAddresses };
 }
 
+/** IDs produced by the offline fallbacks — only these may receive demo data. */
+export function isMockId(id?: string | null): boolean {
+  return !id || id === 'mock' || id.startsWith('upload_');
+}
+
 export const analysisApi = {
   run: async (uploadId: string) => {
-    const real = await tryFetch<any>(`/analysis/${uploadId}/run`, { method: 'POST' });
+    const real = await tryFetch<any>(`/analysis/run/${uploadId}`, { method: 'POST' }, 60000);
     return real || { status: 'completed', message: 'Analysis complete' };
   },
   getPatterns: async (uploadId?: string): Promise<Pattern[]> => {
     if (uploadId) {
-      const real = await tryFetch<{ patterns: Pattern[] } | Pattern[]>(`/analysis/${uploadId}/patterns`);
+      const real = await tryFetch<{ patterns: Pattern[] } | Pattern[]>(`/analysis/patterns?upload_id=${encodeURIComponent(uploadId)}`);
       if (real) return Array.isArray(real) ? real : (real as any).patterns || [];
+      if (!isMockId(uploadId)) return [];
       // Return seeded mock data for this uploadId
       return generateSeededMockData(uploadId).patterns;
     }
@@ -436,8 +476,9 @@ export const analysisApi = {
   },
   getSuspiciousAddresses: async (uploadId?: string) => {
     if (uploadId) {
-      const real = await tryFetch<{ addresses: SuspiciousAddress[] }>(`/analysis/${uploadId}/suspicious`);
+      const real = await tryFetch<{ addresses: SuspiciousAddress[] }>(`/analysis/suspicious-addresses/${encodeURIComponent(uploadId)}?limit=100`);
       if (real) return real;
+      if (!isMockId(uploadId)) return { addresses: [] };
       // Return seeded mock data for this uploadId
       return { addresses: generateSeededMockData(uploadId).addresses };
     }
@@ -445,8 +486,8 @@ export const analysisApi = {
   },
   getSuspicious: async (uploadId: string) => analysisApi.getSuspiciousAddresses(uploadId),
   getStatus: async (uploadId: string) => {
-    const real = await tryFetch<{ status: string; progress: number }>(`/analysis/${uploadId}/status`);
-    return real || { status: 'completed', progress: 100 };
+    const real = await tryFetch<{ status: string; summary?: any }>(`/analysis/${encodeURIComponent(uploadId)}`);
+    return real ? { ...real, progress: 100 } : { status: 'completed', progress: 100 };
   },
 };
 
@@ -485,32 +526,76 @@ const MOCK_GRAPH: GraphData = {
   }
 };
 
+/** Backend sends `edges`; force-graph wants `links`. Expose both. */
+function withLinks(g: any): GraphData {
+  const edges = g.edges || g.links || [];
+  return { ...g, edges, links: edges };
+}
+
 export const graphApi = {
   getSuspiciousSubgraph: async (uploadId: string, _topK?: number, _hop?: number): Promise<GraphData> => {
-    const real = await tryFetch<GraphData>(`/graph/suspicious/${uploadId}`);
-    return real || MOCK_GRAPH;
+    const real = await tryFetch<GraphData>(`/graph/suspicious/${encodeURIComponent(uploadId)}`, {}, 30000);
+    return real ? withLinks(real) : { ...MOCK_GRAPH, isDemo: true };
   },
   getFullGraph: async (uploadId: string): Promise<GraphData> => {
-    const real = await tryFetch<GraphData>(`/graph/${uploadId}`);
-    return real || MOCK_GRAPH;
+    const real = await tryFetch<GraphData>(`/graph/${encodeURIComponent(uploadId)}`, {}, 30000);
+    return real ? withLinks(real) : { ...MOCK_GRAPH, isDemo: true };
+  },
+};
+
+// ─── Model card API ───────────────────────────────────────────────────────────
+
+export interface ModelMetrics { f1: number; pr_auc: number; precision: number; recall: number; threshold: number }
+export interface ModelInfo {
+  loaded: boolean;
+  modelType: string | null;
+  checkpoint: string | null;
+  parameters: number;
+  inputFeatures: number;
+  decisionThreshold: number;
+  temperatures: Record<'conv1' | 'conv2' | 'conv3', number[]> | null;
+  metrics: {
+    dataset: string;
+    split: string;
+    tg_gatv2: ModelMetrics;
+    gatv2_baseline: ModelMetrics;
+    confusion_matrix: { tn: number; fp: number; fn: number; tp: number };
+  };
+  /** true when served from the bundled copy because the API was unreachable */
+  offline?: boolean;
+}
+
+/** Same numbers as docs/findings.md — used only when the backend is offline. */
+const PUBLISHED_MODEL_INFO: ModelInfo = {
+  loaded: false,
+  modelType: 'best_model_tg',
+  checkpoint: 'best_model_tg.pt',
+  parameters: 23310,
+  inputFeatures: 43,
+  decisionThreshold: 0.7,
+  temperatures: {
+    conv1: [0.132, 0.198, 0.19, 0.77],
+    conv2: [0.613, 0.556, 1.004, 1.039],
+    conv3: [0.867, 1.138, 1.095, 1.025],
+  },
+  metrics: {
+    dataset: 'Elliptic2 (121,810 subgraphs, 2.27% suspicious)',
+    split: 'temporal 72/8/20',
+    tg_gatv2: { f1: 0.564, pr_auc: 0.6042, precision: 0.6117, recall: 0.5232, threshold: 0.7 },
+    gatv2_baseline: { f1: 0.5558, pr_auc: 0.5906, precision: 0.6988, recall: 0.4614, threshold: 0.79 },
+    confusion_matrix: { tn: 23672, fp: 172, fn: 247, tp: 271 },
+  },
+  offline: true,
+};
+
+export const modelApi = {
+  getInfo: async (): Promise<ModelInfo> => {
+    const real = await tryFetch<ModelInfo>('/model/info', {}, 8000);
+    return real?.metrics ? real : PUBLISHED_MODEL_INFO;
   },
 };
 
 // ─── Safeguard / Live-Alert API ───────────────────────────────────────────────
-
-export interface SafeguardAlert {
-  id: string;
-  severity: string;
-  riskLevel: string;
-  walletId: string;
-  recipient?: string;
-  platform?: string;
-  amount?: number;
-  riskScore?: number;
-  message: string;
-  reasons?: string[];
-  timestamp: string;
-}
 
 export const safeguardApi = {
   getStats: async () => {
@@ -556,21 +641,32 @@ const MOCK_REPORTS: Report[] = [
 
 export const reportsApi = {
   generate: async (data: any): Promise<Report> => {
-    const real = await tryFetch<any>('/reports/generate', { method: 'POST', body: JSON.stringify({ uploadId: data.upload_id, type: data.report_type, format: data.format }) });
+    const type = String(data.report_type || 'compliance').toLowerCase();
+    const format = String(data.format || 'pdf').toLowerCase().replace('xlsx', 'excel');
+    const real = data.upload_id && !isMockId(data.upload_id)
+      ? await tryFetch<any>('/reports/generate', {
+          method: 'POST',
+          body: JSON.stringify({
+            uploadId: data.upload_id,
+            type: ['compliance', 'investigation', 'summary'].includes(type) ? type : 'compliance',
+            format: ['pdf', 'excel', 'json'].includes(format) ? format : 'pdf',
+          }),
+        }, 30000)
+      : null;
     if (real) return real;
     return { id: `rpt_${Date.now()}`, title: `${data.report_type || 'Compliance'} Report – ${new Date().toLocaleDateString()}`, report_type: data.report_type || 'Compliance', status: 'completed', format: (data.format || 'PDF').toUpperCase(), size: '1.2 MB', createdAt: new Date().toISOString() };
   },
 
   getHistory: async (_uploadId?: string, _page = 1, _limit = 20) => {
-    const real = await tryFetch<{ reports: Report[]; pagination: any }>(`/reports/history?page=${_page}&limit=${_limit}${_uploadId ? `&upload_id=${_uploadId}` : ''}`);
+    const real = await tryFetch<{ reports: Report[]; pagination: any }>(`/reports/?page=${_page}&limit=${_limit}${_uploadId ? `&upload_id=${_uploadId}` : ''}`);
     if (real && real.reports?.length > 0) return real;
     return { reports: MOCK_REPORTS, pagination: { page: 1, limit: 20, total: MOCK_REPORTS.length, totalPages: 1 } };
   },
 
   downloadReport: async (_reportId: string): Promise<Blob> => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const res = await fetch(`${API_V1}/reports/${_reportId}/download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_V1}/reports/download/${_reportId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.ok) return res.blob();
     } catch { /* mock */ }
     const content = `SmurfPakad AML Analysis Report
@@ -614,7 +710,7 @@ Powered by IBM watsonx.ai | FIU-IND Compliant | FATF Typology Mapped
 
   download: async (reportId: string): Promise<Blob> => reportsApi.downloadReport(reportId),
   getStatus: async (reportId: string) => {
-    const real = await tryFetch<{ status: string; downloadUrl?: string }>(`/reports/${reportId}/status`);
+    const real = await tryFetch<{ status: string; downloadUrl?: string }>(`/reports/${reportId}`);
     return real || { status: 'completed' };
   },
 };
@@ -770,7 +866,9 @@ export type WSMessage =
   | { type: 'analysis_update'; uploadId: string; status: string; data?: any }
   | { type: 'safeguard_alert'; data: any }
   | { type: 'analysis_stream'; uploadId: string; stage: string; progress: number; data?: any }
-  | { type: 'attack_simulation'; event: any };
+  | { type: 'attack_simulation'; event: any }
+  | { type: 'attack_complete'; pattern?: string; events?: number }
+  | { type: 'attack_error'; error: string };
 
 export function useWebSocket(onMessage?: (msg: WSMessage) => void) {
   const socketRef = useRef<WebSocket | null>(null);
@@ -778,8 +876,8 @@ export function useWebSocket(onMessage?: (msg: WSMessage) => void) {
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) return;
+    const token = localStorage.getItem('authToken');
+    if (!token || token === 'offline-demo') return;
 
     const wsUrl = API_BASE.replace('http', 'ws');
     const ws = new WebSocket(`${wsUrl}/ws?token=${token}`);

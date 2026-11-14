@@ -129,7 +129,7 @@ export default function SmurfingAttackDemo() {
       if (event.wallet_updates && Object.keys(event.wallet_updates).length > 0) {
         setWallets(prev => {
           const next = { ...prev };
-          Object.entries(event.wallet_updates).forEach(([key, update]) => {
+          Object.entries(event.wallet_updates as Record<string, Record<string, unknown>>).forEach(([key, update]) => {
             if (next[key]) {
               next[key] = { ...next[key], ...update };
             }
@@ -375,7 +375,7 @@ export default function SmurfingAttackDemo() {
     startTimeRef.current = Date.now();
     
     try {
-      await api.post('/api/v1/attack/start', {
+      await api.post('/attack/start', {
         pattern: selectedPattern,
         duration: PATTERN_CONFIGS[selectedPattern].duration
       });
@@ -400,7 +400,7 @@ export default function SmurfingAttackDemo() {
     cancelAnimationFrame(animationRef.current);
     
     try {
-      await api.post('/api/v1/attack/stop');
+      await api.post('/attack/stop', {});
       toast.info('Simulation stopped');
     } catch (e) {
       console.error('Failed to stop attack:', e);

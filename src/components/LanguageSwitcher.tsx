@@ -21,7 +21,9 @@ export function LanguageSwitcher({ compact = true }: LanguageSwitcherProps) {
 
   return (
     <div
-      className="flex items-center gap-0.5 p-0.5 rounded-full bg-white/8 border border-white/10 backdrop-blur-sm"
+      className="flex items-center gap-0.5 rounded-lg border border-black/[0.08] p-0.5 dark:border-white/[0.08]"
+      role="group"
+      aria-label="Language"
       title="Switch language / भाषा बदलें / ಭಾಷೆ ಬದಲಾಯಿಸಿ"
     >
       {LANGUAGES.map((lang) => {
@@ -31,18 +33,14 @@ export function LanguageSwitcher({ compact = true }: LanguageSwitcherProps) {
             key={lang.code}
             onClick={() => changeLanguage(lang.code)}
             title={lang.full}
-            className={`
-              relative px-2.5 py-1 rounded-full text-xs font-bold tracking-wide transition-all duration-300
-              ${isActive
-                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/30 scale-105'
-                : 'text-gray-400 hover:text-white hover:bg-white/10'
-              }
-            `}
+            aria-pressed={isActive}
+            className={`rounded-md px-2 py-1 text-xs transition-colors ${
+              isActive
+                ? 'bg-black/[0.06] font-medium text-zinc-900 dark:bg-white/[0.08] dark:text-white'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
+            }`}
           >
             {lang.label}
-            {isActive && (
-              <span className="absolute inset-0 rounded-full bg-purple-400/20 animate-ping pointer-events-none" />
-            )}
           </button>
         );
       })}

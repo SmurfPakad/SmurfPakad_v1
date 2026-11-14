@@ -52,7 +52,7 @@ const AuthButton = () => {
       };
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('authToken', response.access_token);
+      localStorage.setItem('authToken', response.token ?? response.access_token);
 
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);

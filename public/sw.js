@@ -1,57 +1,51 @@
-// SmurfPakad PWA Service Worker
-// Caches core assets for offline use and intercepts API calls
-const CACHE_NAME = 'smurfpakad-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/cryptoflow/dashboard',
-];
+// SmurfPakad service worker (scope: /cryptoflow/)
+// Network-first for pages and assets so a redeploy is picked up immediately;
+// the cache is only an offline fallback. API calls are never intercepted, so the
+// app's own offline handling sees real network errors.
+const CACHE_NAME = 'smurfpakad-v2';
+const BASE = '/cryptoflow/';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.add(BASE)).catch(() => {}));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network-first for API calls, cache-first for static assets
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() =>
-        new Response(JSON.stringify({ error: 'offline', message: 'SmurfPakad requires connection for live analysis' }), {
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
-    );
-  } else {
-    event.respondWith(
-      caches.match(event.request).then((cached) => cached || fetch(event.request))
-    );
-  }
+  const req = event.request;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin || !url.pathname.startsWith(BASE)) return;
+
+  event.respondWith(
+    fetch(req)
+      .then((res) => {
+        if (res.ok && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        }
+        return res;
+      })
+      .catch(async () => (await caches.match(req)) || (req.mode === 'navigate' ? caches.match(BASE) : Response.error()))
+  );
 });
 
 // Push notification for high-risk alerts
 self.addEventListener('push', (event) => {
   const data = event.data?.json() || {};
   event.waitUntil(
-    self.registration.showNotification('🚨 SmurfPakad Alert', {
+    self.registration.showNotification('SmurfPakad alert', {
       body: data.message || 'High-risk transaction detected',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      icon: BASE + 'icons/icon-192.png',
       tag: 'aml-alert',
-      data: { url: '/cryptoflow/warroom' },
+      data: { url: BASE + 'warroom' },
       actions: [
-        { action: 'investigate', title: '🔍 Investigate' },
+        { action: 'investigate', title: 'Investigate' },
         { action: 'dismiss', title: 'Dismiss' },
       ],
     })
@@ -61,6 +55,6 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   if (event.action === 'investigate') {
-    event.waitUntil(clients.openWindow('/cryptoflow/warroom'));
+    event.waitUntil(clients.openWindow(BASE + 'warroom'));
   }
 });

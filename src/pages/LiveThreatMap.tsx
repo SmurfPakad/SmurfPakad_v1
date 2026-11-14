@@ -381,7 +381,7 @@ export default function LiveThreatMap() {
 
   // WebSocket / demo live alerts
   useEffect(() => {
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("authToken");
 
     if (token) {
       // ── Real WebSocket path ──────────────────────────────────────────────
@@ -407,14 +407,15 @@ export default function LiveThreatMap() {
           }
         } catch { /* ignore */ }
       };
+      let stopDemo: (() => void) | undefined;
       ws.onclose = () => setWsConnected(false);
       ws.onerror = () => {
         setWsConnected(false);
-        // Fallback to demo mode if connection fails
-        startDemoMode();
+        // Fallback to demo mode if connection fails (keep its cleanup so the interval stops on unmount)
+        stopDemo = startDemoMode();
       };
       wsRef.current = ws;
-      return () => { ws.close(); };
+      return () => { ws.close(); stopDemo?.(); };
     }
 
     // ── Demo mode — simulate live alerts without backend auth ────────────
@@ -460,7 +461,7 @@ export default function LiveThreatMap() {
       return () => { clearInterval(liveInterval); };
     };
 
-    if (!localStorage.getItem("auth_token")) {
+    if (!localStorage.getItem("authToken")) {
       return startDemoMode();
     }
   }, []);

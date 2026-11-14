@@ -5,7 +5,7 @@ export const features = [
   {
     icon: <Network className="h-6 w-6" />,
     title: "Graph Neural Network",
-    description: "Advanced GraphSAGE/GATv2 architecture detects complex smurfing topologies and layering patterns with 98.5% accuracy on the Elliptic dataset."
+    description: "Advanced GraphSAGE/GATv2 architecture detects complex smurfing topologies and layering patterns — our temperature-gated variant beats the published GATv2 baseline on Elliptic2 (F1 0.564 vs 0.556)."
   },
   {
     icon: <Shield className="h-6 w-6" />,

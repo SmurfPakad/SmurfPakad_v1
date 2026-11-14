@@ -2,31 +2,39 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ToastContainer } from "@/components/ToastNotification";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Dashboard from "./pages/Dashboard";
-import Upload from "./pages/Upload";
-import Analysis from "./pages/Analysis";
-import Graph from "./pages/Graph";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import Patterns from "./pages/Patterns";
-import Benchmarks from "./pages/Benchmarks";
-import Heatmap from "./pages/Heatmap";
 import AuthCallback from "./pages/AuthCallback";
-import LiveThreatMap from "./pages/LiveThreatMap";
-import WarRoom from "./pages/WarRoom";
-import AgentChat from "./pages/AgentChat";
-import Governance from "./pages/Governance";
-import FederatedDemo from "./pages/FederatedDemo";
-import ComplianceDashboard from "./pages/ComplianceDashboard";
-import Documentation from "./pages/Documentation";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Upload = lazy(() => import("./pages/Upload"));
+const Analysis = lazy(() => import("./pages/Analysis"));
+const Graph = lazy(() => import("./pages/Graph"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Patterns = lazy(() => import("./pages/Patterns"));
+const Benchmarks = lazy(() => import("./pages/Benchmarks"));
+const Heatmap = lazy(() => import("./pages/Heatmap"));
+const LiveThreatMap = lazy(() => import("./pages/LiveThreatMap"));
+const WarRoom = lazy(() => import("./pages/WarRoom"));
+const AgentChat = lazy(() => import("./pages/AgentChat"));
+const Governance = lazy(() => import("./pages/Governance"));
+const FederatedDemo = lazy(() => import("./pages/FederatedDemo"));
+const ComplianceDashboard = lazy(() => import("./pages/ComplianceDashboard"));
+const Documentation = lazy(() => import("./pages/Documentation"));
 
 const queryClient = new QueryClient();
+
+// Pages are code-split; this shows while a page chunk downloads.
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#0a0b10]" role="status" aria-label="Loading">
+    <div className="h-8 w-8 rounded-full border-2 border-violet-400/30 border-t-violet-400 animate-spin" />
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -36,6 +44,7 @@ const App = () => (
         <Sonner />
         <ToastContainer />
         <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/cryptoflow" element={<Index />} />
           <Route path="/cryptoflow/auth/callback" element={<AuthCallback />} />
@@ -122,6 +131,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
     </ThemeProvider>

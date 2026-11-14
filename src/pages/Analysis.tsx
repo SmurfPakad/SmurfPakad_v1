@@ -3,12 +3,12 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, TrendingUp, Users, Clock, Brain, Link as LinkIcon, Activity, CheckCircle, Loader2, ChevronLeft, Sparkles, BarChart3, Zap, Shield } from "lucide-react";
+import { AlertTriangle, TrendingUp, Users, Clock, Brain, Link as LinkIcon, Activity, CheckCircle, Loader2, ChevronLeft, Info, Sparkles, BarChart3, Zap, Shield } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { analysisApi, uploadApi, type Pattern, type SuspiciousAddress } from "@/lib/api";
+import { analysisApi, uploadApi, isMockId, type Pattern, type SuspiciousAddress } from "@/lib/api";
 
 export default function Analysis() {
   const [searchParams] = useSearchParams();
@@ -56,7 +56,9 @@ export default function Analysis() {
           patternsCount: patterns.length,
           avgConfidence: Math.round(avgConf * 10) / 10,
           flaggedAddresses: addresses.length,
-          analysisTime: 2.4 // Placeholder - would come from actual analysis
+          analysisTime: addresses.length
+            ? Math.round(Math.max(...addresses.map(a => a.riskScore ?? a.suspiciousScore ?? 0)) * 100)
+            : 0,
         });
       } catch (err: any) {
         console.error('Analysis fetch error:', err);
@@ -70,7 +72,9 @@ export default function Analysis() {
   }, [uploadId]);
 
   const getSeverityColor = (severity: string) => {
-    switch (severity) {
+    const s = (severity || "").toLowerCase();
+    switch (s.charAt(0).toUpperCase() + s.slice(1)) {
+      case "Critical":
       case "High":
         return "bg-red-100 text-red-800 border-red-300";
       case "Medium":
@@ -112,6 +116,15 @@ export default function Analysis() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {isMockId(uploadId) && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <p>
+              <span className="font-semibold">Demo data.</span> Sign in and upload a ledger (CSV/XLSX/JSON with sender,
+              receiver, amount, timestamp) to see results computed from your own transactions.
+            </p>
+          </div>
+        )}
         {/* Header */}
         <div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
@@ -120,7 +133,7 @@ export default function Analysis() {
             </button>
             Analysis Results
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 ml-10">AI-powered pattern detection and risk assessment</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 ml-10">Detected laundering patterns and flagged wallets, each with the evidence behind it</p>
         </div>
 
         {isLoading && (
@@ -160,7 +173,7 @@ export default function Analysis() {
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">{analysisStats.patternsCount}</div>
+                  <div className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">{analysisStats.patternsCount}</div>
                   <p className="text-xs text-gray-500 mt-1">Across all transactions</p>
                 </CardContent>
               </Card>
@@ -173,8 +186,8 @@ export default function Analysis() {
                   <TrendingUp className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">{analysisStats.avgConfidence}%</div>
-                  <p className="text-xs text-gray-500 mt-1">High accuracy detection</p>
+                  <div className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">{analysisStats.avgConfidence}%</div>
+                  <p className="text-xs text-gray-500 mt-1">Mean confidence across detected patterns</p>
                 </CardContent>
               </Card>
 
@@ -186,7 +199,7 @@ export default function Analysis() {
                   <Users className="h-4 w-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">{analysisStats.flaggedAddresses}</div>
+                  <div className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">{analysisStats.flaggedAddresses}</div>
                   <p className="text-xs text-gray-500 mt-1">Require investigation</p>
                 </CardContent>
               </Card>
@@ -194,13 +207,13 @@ export default function Analysis() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">
-                    Analysis Time
+                    Highest Risk
                   </CardTitle>
                   <Clock className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">{analysisStats.analysisTime}s</div>
-                  <p className="text-xs text-gray-500 mt-1">Lightning fast GNN</p>
+                  <div className="text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">{analysisStats.analysisTime}/100</div>
+                  <p className="text-xs text-gray-500 mt-1">Top-scored wallet in this upload</p>
                 </CardContent>
               </Card>
             </div>
@@ -305,7 +318,7 @@ export default function Analysis() {
                               </div>
                               <div>
                                 <h4 className="text-sm font-bold text-white">Why was this flagged?</h4>
-                                <p className="text-[10px] text-gray-500">GATv2 XAI — SHAP-style feature attribution</p>
+                                <p className="text-[10px] text-gray-500">Typical indicators for this typology (illustrative weights) — see each wallet's actual red flags under Addresses</p>
                               </div>
                             </div>
                             <div className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${getRecommendedAction(pattern.confidence).color}`}>
@@ -414,12 +427,12 @@ export default function Analysis() {
                             </div>
                             <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
                               <span>{address.transactionCount} transactions</span>
-                              {address.totalAmount && (
+                              {address.totalAmount ? (
                                 <>
                                   <span>•</span>
-                                  <span>${address.totalAmount.toLocaleString()} volume</span>
+                                  <span>{address.totalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} volume</span>
                                 </>
-                              )}
+                              ) : null}
                               {address.firstSeen && (
                                 <>
                                   <span>•</span>
@@ -439,15 +452,15 @@ export default function Analysis() {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Risk Score</span>
                             <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                              {(address.suspiciousScore * 100).toFixed(0)}/100
+                              {((address.riskScore ?? address.suspiciousScore ?? 0) * 100).toFixed(0)}/100
                             </span>
                           </div>
                           <Progress 
-                            value={address.suspiciousScore * 100} 
+                            value={(address.riskScore ?? address.suspiciousScore ?? 0) * 100} 
                             className="h-3"
                           />
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                            Based on network analysis, transaction patterns, and ML model prediction
+                            From the red flags below (structure, amounts, timing, linked wallets) plus the GNN signal
                           </p>
                         </div>
 

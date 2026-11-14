@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import { useWebSocket } from '@/lib/api';
 import { toast } from '@/components/ToastNotification';
-import { Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import type { ForceGraphMethods } from 'react-force-graph-2d';
 
 interface GraphNode {
   id: string;
@@ -92,12 +93,13 @@ const riskColors = {
 };
 
 export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysisProps) {
+  const navigate = useNavigate();
   const [currentStage, setCurrentStage] = useState<string>('parsing');
   const [progress, setProgress] = useState(0);
   const [stageProgress, setStageProgress] = useState<Record<string, number>>({});
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [patterns, setPatterns] = useState<PatternCard[]>([]);
-  const [subgraphStats, setSubgraphStats] = useState<Record<string, unknown> | null>(null);
+  const [subgraphStats, setSubgraphStats] = useState<{ patterns?: number; suspicious_addresses?: number; max_risk_score?: number; [k: string]: unknown } | null>(null);
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
   const [meanScore, setMeanScore] = useState(0);
@@ -107,7 +109,8 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
   const [wsConnected, setWsConnected] = useState(false);
   const [receivedRealMessage, setReceivedRealMessage] = useState(false);
 
-  const graphRef = useRef<object | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const graphRef = useRef<ForceGraphMethods<any, any> | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const dimensions = useRef({ width: 800, height: 500 });
   const particleAnimationRef = useRef<number>(0);
@@ -730,7 +733,7 @@ export default function LiveAnalysisPanel({ uploadId, onComplete }: LiveAnalysis
                 </div>
                 <div className="bg-gray-800/50 p-3 rounded-lg">
                   <p className="text-xs text-gray-400">Max Risk</p>
-                  <p className="text-2xl font-bold text-purple-400">{(subgraphStats.max_risk_score * 100).toFixed(0)}%</p>
+                  <p className="text-2xl font-bold text-purple-400">{((subgraphStats.max_risk_score ?? 0) * 100).toFixed(0)}%</p>
                 </div>
                 <div className="bg-gray-800/50 p-3 rounded-lg">
                   <p className="text-xs text-gray-400">Stage</p>

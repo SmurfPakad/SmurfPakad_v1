@@ -95,7 +95,7 @@ function DataPacket({ bank, speed }: { bank: typeof BANKS[0]; speed: number }) {
     const x = Math.cos(angle) * 2.5 * (1 - t);
     const z = Math.sin(angle) * 2.5 * (1 - t);
     meshRef.current.position.set(x, 0, z);
-    meshRef.current.material.opacity = 1 - t;
+    (meshRef.current.material as THREE.Material).opacity = 1 - t;
   });
 
   return (

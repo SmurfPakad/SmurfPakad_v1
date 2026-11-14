@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MessageCircle, X, Send, Bot, User } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { agentApi } from '@/lib/api';
 
 interface Message {
   id: string;
@@ -47,48 +48,12 @@ const ChatBot = () => {
     setIsLoading(true);
 
     try {
-      // Call Google Gemini API directly
-      const GEMINI_API_KEY = 'AIzaSyAVzE1E-Hle0xQwF513oKct-CJTgqeVmQo';
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `You are SmurfBot, an AI assistant for SmurfPakad - a blockchain forensics platform that detects money laundering (Smurfing) using Graph Neural Networks. 
-
-Context about SmurfPakad:
-- Detects Smurfing patterns (Fan-Out/Fan-In, Layering, Peeling Chains)
-- Uses GNN with 98.5% accuracy
-- Analyzes blockchain transactions from Ethereum, Bitcoin, BSC, Solana
-- Pricing: Analyst ($299/mo), Professional ($799/mo), Enterprise ($2,499/mo)
-- Accepts CSV data with: source_wallet_id, dest_wallet_id, amount, timestamp, token_type
-- Provides suspicion scoring, real-time alerts, compliance reports
-- REST API with 10 endpoints + WebSocket support
-
-User question: ${userInput}
-
-Provide a helpful, concise answer about SmurfPakad's features, blockchain forensics, or money laundering detection. Keep responses under 150 words.`
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 500,
-          }
-        })
-      });
-
+      // Ask the backend AML agent (IBM watsonx.ai / Groq server-side — no API keys in the browser).
+      // Falls back to the built-in knowledge base when the backend is unreachable.
       let assistantResponse = '';
-      
-      if (response.ok) {
-        const data = await response.json();
-        assistantResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'I apologize, but I encountered an error. Please try asking your question again.';
-      } else {
-        // Fallback response if API fails
-        assistantResponse = getSmartResponse(userInput);
-      }
+      const reply = await agentApi.chat(userInput).catch(() => null);
+      const text = typeof reply?.message === 'string' ? reply.message.trim() : '';
+      assistantResponse = text && !text.startsWith('SmurfPakad Agent: I can investigate') ? text : getSmartResponse(userInput);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -120,7 +85,7 @@ Provide a helpful, concise answer about SmurfPakad's features, blockchain forens
     }
     
     if (lowerQuery.includes('gnn') || lowerQuery.includes('neural network')) {
-      return 'Our Graph Neural Network (GNN) analyzes blockchain transaction graphs to identify suspicious patterns. It examines node centrality, edge weights, and temporal patterns to detect Fan-Out/Fan-In structures, Gather-Scatter patterns, and Peeling Chains. The GNN achieves 98.5% accuracy by learning from labeled illicit wallet data.';
+      return 'Our Graph Neural Network (GNN) analyzes blockchain transaction graphs to identify suspicious patterns. It examines node centrality, edge weights, and temporal patterns to detect Fan-Out/Fan-In structures, Gather-Scatter patterns, and Peeling Chains. On the Elliptic2 benchmark our Temperature-Gated GATv2 reaches F1 0.564 / PR-AUC 0.604, beating the published GATv2 baseline.';
     }
     
     if (lowerQuery.includes('price') || lowerQuery.includes('cost') || lowerQuery.includes('pricing')) {
@@ -136,7 +101,7 @@ Provide a helpful, concise answer about SmurfPakad's features, blockchain forens
     }
     
     if (lowerQuery.includes('accuracy') || lowerQuery.includes('detection rate')) {
-      return 'Our GNN-powered system achieves 98.5% accuracy in detecting money laundering patterns. The suspicion scoring algorithm uses centrality measures and connection analysis to known illicit nodes, providing confidence levels for each detected pattern.';
+      return 'Our Temperature-Gated GATv2 reaches F1 0.564 and PR-AUC 0.604 on held-out Elliptic2 data (2.27% positives), beating the published GATv2 baseline. The suspicion scoring algorithm uses centrality measures and connection analysis to known illicit nodes, providing confidence levels for each detected pattern.';
     }
 
     if (lowerQuery.includes('help') || lowerQuery.includes('how') || lowerQuery.includes('what')) {

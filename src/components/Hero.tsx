@@ -360,9 +360,9 @@ const Hero = () => {
             style={{ fontSize: 'clamp(0.95rem, 1.8vw, 1.15rem)' }}
           >
             SmurfPakad uses message-passing Graph Neural Networks to analyze blockchain transaction topology,
-            detecting sophisticated money laundering schemes with{' '}
-            <span className="text-white font-medium">98.5% accuracy</span>
-            {' '}— powered by IBM watsonx.ai.
+            detecting sophisticated money laundering schemes. Our temperature-gated GATv2{' '}
+            <span className="text-white font-medium">beats the published GATv2 baseline on Elliptic2</span>
+            {' '}— with IBM watsonx.ai writing the analyst brief.
           </p>
 
           {/* CTA Buttons */}
