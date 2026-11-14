@@ -495,8 +495,11 @@ class ReportService:
         if not report or report.get("status") != "completed":
             return None
         
-        file_path = Path(report.get("file_path", ""))
-        if not file_path.exists():
+        stored = report.get("filePath") or report.get("file_path")
+        candidates = [Path(stored)] if stored else []
+        candidates += [self.reports_dir / f"{report_id}{ext}" for ext in (".pdf", ".xlsx", ".json")]
+        file_path = next((p for p in candidates if p.is_file()), None)
+        if file_path is None:
             return None
         
         with open(file_path, 'rb') as f:

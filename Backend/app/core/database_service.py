@@ -646,6 +646,7 @@ class DatabaseService:
                     "format": report.format,
                     "status": report.status,
                     "size": report.size_bytes,
+                    "filePath": report.file_path,
                     "createdAt": report.created_at.isoformat() if report.created_at else None
                 }
             return None
@@ -1099,36 +1100,34 @@ class DatabaseService:
         try:
             # Get user's uploads
             uploads = db.query(Upload).filter(Upload.user_id == user_id).all()
-            total_transactions = sum(u.row_count for u in uploads)
+            total_transactions = sum(u.row_count or 0 for u in uploads)
             total_uploads = len(uploads)
             
             # Get upload IDs
             upload_ids = [u.id for u in uploads]
             
-            # Aggregate from analysis_results
+            # Aggregate from stored analysis results
             suspicious_count = 0
             patterns_count = 0
+            addresses_monitored = 0
             max_risk = 0.0
             if upload_ids:
                 analyses = db.query(AnalysisResult).filter(AnalysisResult.upload_id.in_(upload_ids)).all()
                 for a in analyses:
-                    suspicious_count += a.suspicious_node_count
-                    patterns_count += a.smurfing_patterns_detected
-                    max_risk = max(max_risk, a.max_risk_score)
-            
-            recent_uploads = db.query(Upload).filter(Upload.user_id == user_id).order_by(Upload.uploaded_at.desc()).limit(5).all()
-            
+                    suspicious_count += a.suspicious_node_count or 0
+                    max_risk = max(max_risk, a.max_risk_score or 0.0)
+                patterns_count = db.query(Pattern).filter(Pattern.upload_id.in_(upload_ids)).count()
+                addresses_monitored = db.query(SuspiciousAddress).filter(SuspiciousAddress.upload_id.in_(upload_ids)).count()
+
+            # Keys match what routers/dashboard.py reads
             return {
-                "totalTransactions": total_transactions,
-                "suspiciousActivity": suspicious_count,
-                "activeCases": len([u for u in uploads if u.status == "completed"]),
-                "riskScore": max_risk,
-                "changes": {
-                    "transactions": "+15.3%",
-                    "suspicious": "+5.2%",
-                    "cases": "-2.1%",
-                    "risk": "+8.7%"
-                }
+                "total_transactions": total_transactions,
+                "suspicious_count": suspicious_count,
+                "total_uploads": total_uploads,
+                "completed_uploads": len([u for u in uploads if u.status == "completed"]),
+                "max_risk_score": max_risk,
+                "patterns_count": patterns_count,
+                "addresses_monitored": addresses_monitored,
             }
         finally:
             db.close()

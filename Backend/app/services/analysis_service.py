@@ -264,14 +264,15 @@ class AnalysisService:
         # Format for API response
         formatted_addresses = [
             {
+                # database_service returns camelCase keys; accept snake_case too
                 "address": a.get("address", ""),
-                "suspiciousScore": safe_float(a.get("suspicious_score"), 0.5),
-                "riskLevel": a.get("risk_level") or "medium",
-                "transactionCount": int(a.get("transaction_count") or 0),
-                "totalAmount": safe_float(a.get("total_amount"), 0.0),
+                "suspiciousScore": safe_float(a.get("suspiciousScore", a.get("suspicious_score")), 0.0),
+                "riskLevel": a.get("riskLevel") or a.get("risk_level") or "low",
+                "transactionCount": int(a.get("transactionCount", a.get("transaction_count")) or 0),
+                "totalAmount": safe_float(a.get("totalAmount", a.get("total_amount")), 0.0),
                 "flags": a.get("flags") or [],
-                "firstSeen": a.get("first_seen"),
-                "lastSeen": a.get("last_seen")
+                "firstSeen": a.get("firstSeen", a.get("first_seen")),
+                "lastSeen": a.get("lastSeen", a.get("last_seen"))
             }
             for a in addresses
         ]

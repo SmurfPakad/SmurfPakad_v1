@@ -23,8 +23,6 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     
     stats_data = await database_service.get_dashboard_stats(user_id)
     
-    # Calculate risk score improvement (mock for now - could be computed from historical data)
-    risk_score = int(min(100, max(0, 100 - (stats_data.get("max_risk_score", 0) * 100))))
     
     return DashboardResponse(
         stats=DashboardStats(
@@ -35,12 +33,8 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             patternsCount=stats_data.get("patterns_count", 0),
             addressesMonitored=stats_data.get("addresses_monitored", 0)
         ),
-        changes=DashboardChanges(
-            transactions="+12.5%",
-            suspicious="+4.2%",
-            cases="+8.1%",
-            risk="+18.3%"
-        )
+        # No historical baseline is stored yet, so no period-over-period change is reported
+        changes=DashboardChanges()
     )
 
 

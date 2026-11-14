@@ -16,11 +16,10 @@ class DashboardStats(BaseModel):
 
 
 class DashboardChanges(BaseModel):
-    transactions: str
-    suspicious: str
-    cases: str
-    risk: str
-
+    transactions: Optional[str] = None
+    suspicious: Optional[str] = None
+    cases: Optional[str] = None
+    risk: Optional[str] = None
 
 class DashboardResponse(BaseModel):
     stats: DashboardStats

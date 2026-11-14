@@ -108,6 +108,10 @@ def test_suspicious_addresses_have_reasons(client, auth_headers, demo_upload):
     addrs = resp.json()["addresses"]
     assert len(addrs) >= 10
     assert all(a["riskScore"] >= 0.35 for a in addrs)
+    # scores/levels must survive the DB round trip (previously defaulted to 0.5 / "medium")
+    assert len({round(a["riskScore"], 3) for a in addrs}) > 1
+    assert any(a["riskLevel"] == "high" for a in addrs)
+    assert all(a["flags"] for a in addrs)  # every flagged wallet explains itself
 
 
 def test_analysis_of_other_users_upload_is_hidden(client, demo_upload):
@@ -139,6 +143,10 @@ def test_graph_statistics(client, auth_headers, demo_upload):
 def test_dashboard_stats(client, auth_headers, demo_upload):
     resp = client.get("/api/v1/dashboard/stats", headers=auth_headers)
     assert resp.status_code == 200, resp.text
+    stats = resp.json()["stats"]
+    assert stats["totalTransactions"] >= 360
+    assert stats["suspiciousCount"] > 0 and stats["patternsCount"] > 0
+    assert resp.json()["changes"]["transactions"] is None  # no fabricated deltas
 
 
 def test_settings_profile_roundtrip(client, auth_headers):
@@ -160,11 +168,17 @@ def test_settings_webhook_lifecycle(client, auth_headers):
     assert client.get("/api/v1/settings/webhooks", headers=auth_headers).status_code == 200
 
 
-def test_report_generate_and_download(client, auth_headers, demo_upload):
+@pytest.mark.parametrize("fmt,ctype", [("pdf", "application/pdf"), ("json", "application/json")])
+def test_report_generate_and_download(client, auth_headers, demo_upload, fmt, ctype):
     resp = client.post("/api/v1/reports/generate",
-                       json={"uploadId": demo_upload["id"], "type": "compliance", "format": "pdf"},
+                       json={"uploadId": demo_upload["id"], "type": "compliance", "format": fmt},
                        headers=auth_headers)
     assert resp.status_code in (200, 201), resp.text
+    rid = resp.json()["id"]
+    dl = client.get(f"/api/v1/reports/download/{rid}", headers=auth_headers)
+    assert dl.status_code == 200, dl.text
+    assert dl.headers["content-type"].startswith(ctype)
+    assert len(dl.content) > 200
 
 
 def test_reports_list(client, auth_headers):
@@ -183,3 +197,13 @@ def test_websocket_rejects_bad_token(client):
     with pytest.raises(WebSocketDisconnect):
         with client.websocket_connect("/ws?token=bogus") as ws:
             ws.receive_text()
+
+
+def test_suspicious_subgraph_uses_same_scores_as_analysis(client, auth_headers, demo_upload):
+    resp = client.get(f"/api/v1/graph/suspicious/{demo_upload['id']}", headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    g = resp.json()
+    seeds = [n for n in g["nodes"] if n["isSeedNode"]]
+    assert seeds and max(n["suspiciousScore"] for n in seeds) >= 0.65
+    assert any(n["riskLevel"] == "high" for n in seeds)
+    assert g["edges"], "seed wallets should be connected"

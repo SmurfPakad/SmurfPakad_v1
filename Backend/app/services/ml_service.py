@@ -515,6 +515,7 @@ class SmurfHunterService:
         top_k: int = 20,
         hop: int = 2,
         scores: Optional[np.ndarray] = None,
+        gnn_scores: Optional[np.ndarray] = None,
     ) -> Dict:
         """
         Extract subgraph centered on top-K suspicious nodes with k-hop neighborhoods
@@ -598,8 +599,13 @@ class SmurfHunterService:
             in_deg = G.in_degree(node_id) if node_id in G else 0
             out_deg = G.out_degree(node_id) if node_id in G else 0
             
-            # Compute heuristic-amplified risk score using degrees + ML
-            risk_score = self._compute_wallet_risk(in_deg, out_deg, ml_score)
+            if scores is not None:
+                # Final scores were computed upstream (score_nodes) — use them as-is
+                risk_score = ml_score
+                ml_score = float(gnn_scores[idx]) if gnn_scores is not None and idx < len(gnn_scores) else ml_score
+            else:
+                # Legacy path: heuristic-amplified risk from degrees + ML
+                risk_score = self._compute_wallet_risk(in_deg, out_deg, ml_score)
             risk = self._get_risk_level(risk_score)
             
             nodes.append({
@@ -1097,6 +1103,12 @@ class SmurfHunterService:
 
         if typology is not None:
             counts = pd.concat([df["Source_Wallet_ID"], df["Dest_Wallet_ID"]]).astype(str).value_counts()
+            if "Amount" in df.columns:
+                amt = pd.to_numeric(df["Amount"], errors="coerce").fillna(0.0)
+                volume = (amt.groupby(df["Source_Wallet_ID"].astype(str)).sum()
+                          .add(amt.groupby(df["Dest_Wallet_ID"].astype(str)).sum(), fill_value=0.0))
+            else:
+                volume = pd.Series(dtype=float)
             for i, node in enumerate(tx_ids):
                 t = typology[str(node)]
                 if t.score < 0.35:
@@ -1106,6 +1118,7 @@ class SmurfHunterService:
                     "riskLevel": self._get_risk_level(t.score),
                     "suspiciousScore": float(t.score),
                     "transactionCount": int(counts.get(str(node), 0)),
+                    "totalAmount": float(volume.get(str(node), 0.0)),
                     "avgScore": float(t.score),
                     "gnnScore": float(gnn_scores[i]) if gnn_scores is not None else None,
                     "flags": sorted(t.flags.keys()),
@@ -1347,7 +1360,8 @@ class SmurfHunterService:
         tx_ids: List,
         top_k: int = 20,
         hop: int = 2,
-        min_score: float = 0.5
+        min_score: float = 0.5,
+        df: Optional[pd.DataFrame] = None,
     ) -> Dict:
         """
         Public method to extract suspicious subgraph with additional filtering
@@ -1363,8 +1377,12 @@ class SmurfHunterService:
         Returns:
             Subgraph data for visualization
         """
+        scores = gnn = None
+        if df is not None:
+            # Same scoring as the analysis pipeline, so the graph matches the report
+            _, scores, gnn, _ = self.score_nodes(df, features, edge_index, tx_ids)
         subgraph = self.extract_suspicious_subgraph(
-            features, edge_index, tx_ids, top_k, hop
+            features, edge_index, tx_ids, top_k, hop, scores=scores, gnn_scores=gnn
         )
         
         # Filter nodes by minimum score if specified

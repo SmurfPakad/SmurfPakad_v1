@@ -77,9 +77,12 @@ async def get_suspicious_addresses(
                 SuspiciousAddress(
                     address=a["address"],
                     riskScore=a.get("suspiciousScore", 0.0),
+                    riskLevel=a.get("riskLevel") or "low",
                     transactionCount=a.get("transactionCount", 0),
                     totalVolume=a.get("totalAmount", 0.0),
+                    totalAmount=a.get("totalAmount", 0.0),
                     patterns=a.get("flags", []),
+                    flags=a.get("flags", []),
                     firstSeen=a.get("firstSeen"),
                     lastSeen=a.get("lastSeen")
                 )

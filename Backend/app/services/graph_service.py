@@ -9,6 +9,7 @@ import networkx as nx
 
 from app.core.database_service import database_service
 from app.services.ml_service import ml_service
+from fastapi.concurrency import run_in_threadpool
 from app.services.tabular import find_upload_file, read_transactions
 from app.config import settings
 
@@ -255,13 +256,15 @@ class GraphService:
             return {"nodes": [], "edges": [], "metadata": {"error": "Could not extract features"}}
         
         # Extract suspicious subgraph using ML model
-        subgraph = ml_service.get_suspicious_subgraph_from_upload(
-            features=features,
-            edge_index=edge_index,
-            tx_ids=tx_ids,
-            top_k=top_k,
-            hop=hop,
-            min_score=min_score
+        subgraph = await run_in_threadpool(
+            ml_service.get_suspicious_subgraph_from_upload,
+            features,
+            edge_index,
+            tx_ids,
+            top_k,
+            hop,
+            min_score,
+            df,
         )
         
         return subgraph

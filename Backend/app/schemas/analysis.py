@@ -49,9 +49,12 @@ class PatternResponse(BaseModel):
 class SuspiciousAddress(BaseModel):
     address: str
     riskScore: float
+    riskLevel: str = "low"
     transactionCount: int
     totalVolume: float
+    totalAmount: float = 0.0
     patterns: List[str] = []
+    flags: List[str] = []           # human-readable red-flag reasons
     firstSeen: Optional[datetime] = None
     lastSeen: Optional[datetime] = None
 
