@@ -496,6 +496,56 @@ export const graphApi = {
   },
 };
 
+// ─── Safeguard / Live-Alert API ───────────────────────────────────────────────
+
+export interface SafeguardAlert {
+  id: string;
+  severity: string;
+  riskLevel: string;
+  walletId: string;
+  recipient?: string;
+  platform?: string;
+  amount?: number;
+  riskScore?: number;
+  message: string;
+  reasons?: string[];
+  timestamp: string;
+}
+
+export const safeguardApi = {
+  getStats: async () => {
+    const real = await tryFetch<any>('/safeguard/stats');
+    if (real) return real;
+    // Demo fallback
+    return {
+      totalChecks:       15842 + Math.floor(Math.random() * 100),
+      totalFlagged:      432   + Math.floor(Math.random() * 10),
+      flaggedRecipients: 87    + Math.floor(Math.random() * 5),
+      flagRate:          2.73  + Math.random() * 0.2,
+    };
+  },
+
+  getAlerts: async (limit = 20): Promise<SafeguardAlert[]> => {
+    const real = await tryFetch<{ alerts: SafeguardAlert[] }>(`/safeguard/alerts?limit=${limit}`);
+    if (real?.alerts?.length) return real.alerts;
+    return [];
+  },
+
+  checkTransaction: async (data: { sender: string; recipient: string; amount: number; platform: string }) => {
+    const real = await tryFetch<any>('/safeguard/check', { method: 'POST', body: JSON.stringify(data) });
+    if (real) return real;
+    const riskScore = 0.3 + Math.random() * 0.65;
+    return {
+      flagged: riskScore > 0.7,
+      riskScore,
+      riskLevel: riskScore > 0.8 ? 'critical' : riskScore > 0.6 ? 'high' : 'medium',
+      reasons: riskScore > 0.7 ? ['Threshold proximity evasion detected', 'Fan-out structuring pattern'] : [],
+    };
+  },
+};
+
+
+
 // ─── Reports API ──────────────────────────────────────────────────────────────
 
 const MOCK_REPORTS: Report[] = [

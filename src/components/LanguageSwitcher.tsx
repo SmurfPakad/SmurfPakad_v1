@@ -10,7 +10,7 @@ interface LanguageSwitcherProps {
   compact?: boolean; // compact = just pill buttons, no label
 }
 
-export function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ compact = true }: LanguageSwitcherProps) {
   const { i18n } = useTranslation();
   const current = i18n.language?.slice(0, 2) || 'en';
 
@@ -39,7 +39,7 @@ export function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
               }
             `}
           >
-            {compact ? lang.label : lang.full}
+            {lang.label}
             {isActive && (
               <span className="absolute inset-0 rounded-full bg-purple-400/20 animate-ping pointer-events-none" />
             )}
@@ -49,3 +49,5 @@ export function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
     </div>
   );
 }
+
+export default LanguageSwitcher;

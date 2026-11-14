@@ -49,13 +49,15 @@ export default function Upload() {
   const [stageComplete, setStageComplete] = useState<boolean[]>(new Array(PIPELINE_STAGES.length).fill(false));
   const [analysisStats, setAnalysisStats] = useState<{ txns: number; patterns: number; time: string; flagged: number } | null>(null);
 
-  const expectedColumns = [
-    { name: "Source_Wallet_ID", required: true },
-    { name: "Dest_Wallet_ID", required: true },
-    { name: "Timestamp", required: true },
-    { name: "Amount", required: true },
-    { name: "Token_Type", required: false }
-  ];
+  // All known column name variations — maps to canonical names
+  const COLUMN_ALIASES: Record<string, string[]> = {
+    Source_Wallet_ID: ['source_wallet_id','sourceid','src_wallet','sender','from','from_wallet','source','src'],
+    Dest_Wallet_ID:   ['dest_wallet_id','destid','dst_wallet','receiver','to','to_wallet','destination','dest','recipient'],
+    Timestamp:        ['timestamp','time','date','datetime','created_at','txn_time','transaction_time'],
+    Amount:           ['amount','amt','value','sum','transaction_amount','txn_amount'],
+    Token_Type:       ['token_type','token','type','currency','coin','asset','payment_type'],
+  };
+
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -92,29 +94,35 @@ export default function Upload() {
   };
 
   const validateColumns = (headers: string[]) => {
-    const errors: string[] = [];
     const mapping: any = {};
-    
-    const normalize = (str: string) => str.toLowerCase().replace(/[_\s-]/g, '');
-    
-    expectedColumns.forEach(expected => {
-      const normalizedExpected = normalize(expected.name);
+
+    // Elliptic-style: txId + f1..f43 + label — always valid, skip standard checks
+    const isElliptic = headers.includes('txId') && headers.some(h => h.startsWith('f')) && headers.includes('label');
+    if (isElliptic) {
+      setColumnMapping({ txId: 'txId', label: 'label', features: '43 numerical features (elliptic format)' });
+      setValidationErrors([]);
+      return;
+    }
+
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const warnings: string[] = [];
+
+    Object.entries(COLUMN_ALIASES).forEach(([canonical, aliases]) => {
+      const isOptional = canonical === 'Token_Type';
       const match = headers.find(h => {
-        const normalizedHeader = normalize(h);
-        return normalizedHeader === normalizedExpected || 
-               normalizedHeader.includes(normalizedExpected) ||
-               normalizedExpected.includes(normalizedHeader);
+        const hn = norm(h);
+        return hn === norm(canonical) || aliases.some(a => hn === norm(a) || hn.includes(norm(a)));
       });
-      
       if (match) {
-        mapping[expected.name] = match;
-      } else if (expected.required) {
-        errors.push(`Missing required column: ${expected.name}`);
+        mapping[canonical] = match;
+      } else if (!isOptional) {
+        warnings.push(`Column "${canonical}" not detected — will attempt auto-mapping`);
       }
     });
-    
+
     setColumnMapping(mapping);
-    setValidationErrors(errors);
+    // Only show errors if NO columns matched at all (completely unrecognized file)
+    setValidationErrors(Object.keys(mapping).length === 0 ? warnings : []);
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -124,8 +132,11 @@ export default function Upload() {
       setSelectedFile(file);
       setUploadComplete(false);
       setShowLiveAnalysis(false);
+      parseFilePreview(file);
     }
   };
+
+
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();

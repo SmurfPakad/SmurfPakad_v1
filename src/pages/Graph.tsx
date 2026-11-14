@@ -31,10 +31,11 @@ function transformGraphData(backendData: GraphData): GraphData {
       ...node,
       // Add label for display (use id as label if not present)
       label: node.id || `node_${index}`,
-      // Add class based on predictedLabel or risk_level
-      class: node.predictedLabel === 'illicit' ? 'illicit' : 
-             node.risk_level === 'high' || node.riskLevel === 'high' ? 'illicit' : 
-             node.risk_level === 'medium' || node.riskLevel === 'medium' ? 'illicit' : 'licit',
+      // Add class based on predictedLabel or risk_level — only HIGH = illicit
+      class: node.predictedLabel === 'illicit' ? 'illicit' :
+             (node.risk_level === 'high' || node.riskLevel === 'high') ? 'illicit' :
+             (node.risk_level === 'medium' || node.riskLevel === 'medium') ? 'suspicious' : 'licit',
+
       // Mark seed nodes as top_k
       top_k: node.isSeedNode === true,
       // Ensure risk_level is lowercase
@@ -97,7 +98,13 @@ export default function Graph() {
   useEffect(() => {
     if (hasFetchedUploads.current) return;
     hasFetchedUploads.current = true;
-    
+
+    // If uploadId is 'mock' or empty, just show demo immediately
+    if (!uploadIdParam || uploadIdParam === 'mock') {
+      setUseDemo(true);
+      return;
+    }
+
     const fetchUploads = async () => {
       try {
         const response = await uploadApi.getHistory(1, 50, 'completed');
@@ -106,14 +113,19 @@ export default function Graph() {
         // Auto-select first upload if one is specified in URL
         if (uploadIdParam && response.uploads?.some((u: UploadItem) => u.id === uploadIdParam)) {
           setSelectedUploadId(uploadIdParam);
+        } else if (uploadIdParam) {
+          // uploadId from URL not found in list — use demo
+          setUseDemo(true);
         }
       } catch (err) {
         console.error('Failed to fetch uploads:', err);
         // Stay in demo mode
+        setUseDemo(true);
       }
     };
     fetchUploads();
   }, [uploadIdParam]);
+
 
   const fetchGraphData = useCallback(async () => {
     if (!selectedUploadId) {

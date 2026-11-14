@@ -186,10 +186,15 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
       ...source,
       nodes: (source.nodes || []).map((n: RawNode) => ({
         ...n,
+        id: String(n.id), // Guarantee string ID for force-graph mapping
         risk_level: (n.risk_level || n.riskLevel || 'low').toLowerCase(),
         suspicious_score: n.suspicious_score || n.suspiciousScore || n.risk || 0,
       })),
-      edges: source.edges || [],
+      edges: (source.edges || []).map((e: any) => ({
+        ...e,
+        source: typeof e.source === 'object' ? String(e.source.id ?? '') : String(e.source),
+        target: typeof e.target === 'object' ? String(e.target.id ?? '') : String(e.target),
+      })),
     };
   }, [data]);
 
@@ -405,25 +410,23 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   }, [centralityMode]);
 
   const getNodeColor = useCallback((node: GraphNode) => {
-    // Highlight traced node
     if (tracingAllPaths === node.id) return '#a855f7';
-
     if (centralityMode !== 'none') {
       const value = node.centrality?.[centralityMode] || 0;
       const intensity = Math.floor(value * 255);
       return `rgb(${255 - intensity}, ${intensity}, 150)`;
     }
-
     if (showCommunities && node.community) {
       return communityColors[node.community as keyof typeof communityColors] || '#999';
     }
-
-    if (node.risk_level === 'high') return '#ef4444';
+    // Semantic: red=HIGH risk, amber=MEDIUM risk, green=LOW/SAFE
+    if (node.risk_level === 'high')   return '#ef4444';
     if (node.risk_level === 'medium') return '#f59e0b';
-    return '#10b981';
+    return '#22c55e'; // bright green = safe
   }, [centralityMode, showCommunities, tracingAllPaths]);
 
   const getLinkColor = useCallback((link: GraphEdge) => {
+
     const sourceId = typeof link.source === 'object' ? (link.source as GraphNode)?.id : link.source;
     const targetId = typeof link.target === 'object' ? (link.target as GraphNode)?.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
@@ -440,19 +443,19 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
         }
       }
     }
-    return link.high_risk ? '#ef4444' : '#94a3b8';
+    return link.high_risk ? '#f87171' : '#cbd5e1';
+
   }, [highlightedPath, tracedEdges]);
 
   const getLinkWidth = useCallback((link: GraphEdge) => {
     const sourceId = typeof link.source === 'object' ? (link.source as GraphNode)?.id : link.source;
     const targetId = typeof link.target === 'object' ? (link.target as GraphNode)?.id : link.target;
     const edgeKey = `${sourceId}->${targetId}`;
-
-    // Wider for traced edges
     if (tracedEdges.has(edgeKey)) return 4;
-
-    return link.high_risk ? 2 : 1;
+    return link.high_risk ? 2.5 : 1.5;
   }, [tracedEdges]);
+
+
 
   // Container dimensions
   useEffect(() => {
@@ -789,14 +792,22 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   }, []);
 
   // Memoize the graph data to prevent unnecessary re-renders
-  // Use logarithmic scaling for node size to prevent huge nodes
-  const forceGraphData = useMemo(() => ({
-    nodes: filteredNodes.map(node => ({
+  const forceGraphData = useMemo(() => {
+    const nodes = filteredNodes.map(node => ({
       ...node,
-      val: Math.max(1, Math.log2(node.degree.in + node.degree.out + 1)) // Logarithmic scaling
-    })),
-    links: (filteredEdges || []).map(edge => ({ ...edge }))
-  }), [filteredNodes, filteredEdges]);
+      val: Math.max(1, Math.log2(node.degree.in + node.degree.out + 1))
+    }));
+    // Ensure source/target are plain string IDs for react-force-graph compatibility
+    const links = (filteredEdges || []).map(edge => ({
+      ...edge,
+      source: typeof edge.source === 'object' ? (edge.source as any)?.id ?? '' : String(edge.source),
+      target: typeof edge.target === 'object' ? (edge.target as any)?.id ?? '' : String(edge.target),
+    }));
+    console.log('[Graph] nodes:', nodes.length, 'links:', links.length, links.slice(0,3));
+    return { nodes, links };
+  }, [filteredNodes, filteredEdges]);
+
+
 
   // Particle function
   const getLinkParticles = useCallback((link: SimulationLink) => {
@@ -835,13 +846,13 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
   // Node value function - stable
   const getNodeVal = useCallback((node: SimulationNode) => node.val, []);
 
-  // Graph props for 2D - don't memoize to avoid reference issues
+  // Graph props for 2D
   const graph2DProps = {
     graphData: forceGraphData,
     width: dimensions.width,
     height: dimensions.height,
     nodeColor: getNodeColor,
-    nodeRelSize: 4,
+    nodeRelSize: 5,
     nodeVal: getNodeVal,
     linkColor: getLinkColor,
     linkWidth: getLinkWidth,
@@ -851,12 +862,18 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     linkDirectionalParticleColor: getLinkParticleColor,
     onNodeClick: handleNodeClick,
     onNodeHover: handleNodeHover,
-    backgroundColor: 'transparent',
-    linkDirectionalArrowLength: 3.5,
-    linkDirectionalArrowRelPos: 1,
+    linkDirectionalArrowLength: 8,
+    linkDirectionalArrowRelPos: 0.85,
+    linkDirectionalArrowColor: getLinkColor,
+    backgroundColor: '#0d0d1a',
     cooldownTicks: 100,
     onEngineStop: handleEngineStop
   };
+
+
+
+
+
 
   // Graph props for 3D
   const graph3DProps = {
@@ -864,7 +881,7 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     width: dimensions.width,
     height: dimensions.height,
     nodeColor: getNodeColor,
-    nodeRelSize: 4,
+    nodeRelSize: 5,
     nodeVal: getNodeVal,
     linkColor: getLinkColor,
     linkWidth: getLinkWidth,
@@ -874,14 +891,16 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
     linkDirectionalParticleColor: getLinkParticleColor,
     onNodeClick: handleNodeClick,
     onNodeHover: handleNodeHover,
-    linkDirectionalArrowLength: 3.5,
-    linkDirectionalArrowRelPos: 1,
+    linkDirectionalArrowLength: 8,
+    linkDirectionalArrowRelPos: 0.85,
+    linkDirectionalArrowColor: getLinkColor,
     cooldownTicks: 100,
     onEngineStop: handleEngineStop,
     enableNodeDrag: true,
     enableNavigationControls: true,
     showNavInfo: false
   };
+
 
   return (
     <div className="space-y-6">
@@ -1216,7 +1235,8 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
           </div>
         </div>
 
-        <div ref={containerRef} className="relative bg-white dark:bg-[#0a0118] rounded-lg overflow-hidden" style={{ width: '100%', height: '600px' }}>
+        <div ref={containerRef} className="relative rounded-lg overflow-hidden border border-white/10" style={{ width: '100%', height: '600px', background: 'linear-gradient(135deg, #0d0d1a 0%, #0f0a2a 60%, #0a0d18 100%)' }}>
+
           {is3D ? (
             <ErrorBoundary fallback={<div className="flex h-full w-full items-center justify-center text-gray-500 bg-gray-900/20 rounded-xl border border-gray-800">3D Network Unavailable (WebGL not supported)</div>}>
               <ForceGraph3D ref={graphRef} {...graph3DProps} />
@@ -1280,7 +1300,6 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
             </div>
           )}
 
-          {/* Path Tracing Indicator */}
           {tracingAllPaths && (
             <div className="absolute top-4 left-4 z-40">
               <div className="bg-purple-600/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
@@ -1300,7 +1319,44 @@ const UltraGraphVisualization = ({ data }: UltraGraphProps) => {
               </div>
             </div>
           )}
+
+          {/* Color Legend */}
+          <div className="absolute bottom-4 left-4 z-30 pointer-events-none">
+            <div className="bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 space-y-1.5">
+              <div className="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-1">Node Risk</div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#ef4444] inline-block flex-shrink-0" />
+                <span className="text-xs text-gray-200">High Risk (Illicit)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#f59e0b] inline-block flex-shrink-0" />
+                <span className="text-xs text-gray-200">Medium Risk</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#22c55e] inline-block flex-shrink-0" />
+                <span className="text-xs text-gray-200">Low Risk (Safe)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#a855f7] inline-block flex-shrink-0" />
+                <span className="text-xs text-gray-200">Path Traced</span>
+              </div>
+              <div className="border-t border-white/10 pt-1 mt-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500">→</span>
+                  <span className="text-xs text-gray-400">Arrows = flow direction</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Hint overlay */}
+          <div className="absolute bottom-4 right-4 z-30 pointer-events-none">
+            <div className="text-[10px] text-gray-600 bg-black/50 rounded px-2 py-1">
+              Click node for details • Right-click to trace paths
+            </div>
+          </div>
         </div>
+
 
         {/* Node Click Context Menu */}
         {showNodeMenu && selectedNode && (

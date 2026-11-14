@@ -26,6 +26,7 @@ import {
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useTheme } from "@/contexts/ThemeContext";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -232,6 +233,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </span>
             </div>
             
+            {/* Language Switcher — visible on all pages */}
+            <LanguageSwitcher />
+
             {/* Notification Bell */}
             <Button
               variant="ghost"
