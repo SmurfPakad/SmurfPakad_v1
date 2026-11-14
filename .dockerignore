@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+**/__pycache__
+**/*.db
+**/.env
+Backend/uploads
+Frontend
+cryptoflow-1.0.0
+public
+src
+Images

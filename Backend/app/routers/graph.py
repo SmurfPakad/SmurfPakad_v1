@@ -42,25 +42,36 @@ async def get_graph_data(
             detail="Graph data not found"
         )
     
+    def _level(n):
+        return (n.get("riskLevel") or n.get("risk_level") or "low").lower()
+
     nodes = [
         GraphNode(
-            id=n["id"],
-            label=n.get("address", n["id"])[:8],
+            id=str(n["id"]),
+            label=str(n.get("address", n["id"])),
             type=n.get("type", "unknown"),
-            riskScore=n.get("suspiciousScore", 0.0),
-            suspicious=n.get("suspiciousScore", 0) > 0.5,
+            riskScore=float(n.get("suspiciousScore", 0.0) or 0.0),
+            riskLevel=_level(n),
+            risk_level=_level(n),
+            suspicious_score=float(n.get("suspiciousScore", 0.0) or 0.0),
+            suspicious=(n.get("suspiciousScore", 0) or 0) >= 0.5,
+            degree=n.get("degree") or {},
+            reasons=n.get("reasons") or [],
+            flags=n.get("flags") or [],
             metadata={"transactionCount": n.get("transactionCount", 0), "totalAmount": n.get("totalAmount", 0)}
         )
         for n in graph_data.get("nodes", [])
     ]
-    
+
     edges = [
         GraphEdge(
-            source=e["source"],
-            target=e["target"],
-            weight=e.get("amount", 1.0),
+            source=str(e["source"]),
+            target=str(e["target"]),
+            weight=float(e.get("amount") or 1.0),
             transactionCount=1,
-            metadata={"suspicious": e.get("suspicious", False)}
+            high_risk=bool(e.get("suspicious", False)),
+            timestamp=str(e["timestamp"]) if e.get("timestamp") is not None else None,
+            metadata={"suspicious": e.get("suspicious", False), "amount": e.get("amount")}
         )
         for e in graph_data.get("edges", [])
     ]

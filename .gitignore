@@ -110,3 +110,5 @@ bun.lockb
 *.db
 
 hero/
+vite.config.ts.timestamp-*.mjs
+Backend/uploads/

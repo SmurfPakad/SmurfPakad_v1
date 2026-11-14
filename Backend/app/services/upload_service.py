@@ -12,6 +12,8 @@ import json
 
 from fastapi import UploadFile
 
+from fastapi.concurrency import run_in_threadpool
+from app.services.tabular import SUPPORTED_EXTENSIONS, find_upload_file, read_transactions
 from app.config import settings
 from app.core.database_service import database_service
 from app.core.websocket import ws_manager
@@ -115,7 +117,7 @@ class UploadService:
         return {
             "id": upload_id,
             "name": file.filename,
-            "status": "processing",
+            "status": "completed",
             "uploadedAt": datetime.utcnow().isoformat()
         }
     
@@ -129,15 +131,12 @@ class UploadService:
         """
         Process uploaded file and extract transactions
         """
-        # Read file
-        if file_ext == '.csv':
-            df = pd.read_csv(file_path)
-        elif file_ext in ['.xlsx', '.xls']:
-            df = pd.read_excel(file_path)
-        elif file_ext == '.json':
-            df = pd.read_json(file_path)
-        else:
-            raise ValueError(f"Unsupported file type: {file_ext}")
+        try:
+            df = read_transactions(file_path)
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, ValueError) as e:
+            raise ValueError(f"Could not parse file: {e}") from e
+        if df.empty:
+            raise ValueError("File contains no transactions")
         
         await ws_manager.broadcast_upload_progress(
             user_id, upload_id, 30, "processing", f"Read {len(df)} records..."
@@ -163,16 +162,10 @@ class UploadService:
         Automatically run ML analysis after file upload with real-time streaming
         """
         try:
-            # Read file
-            if file_ext == '.csv':
-                df = pd.read_csv(file_path)
-            elif file_ext in ['.xlsx', '.xls']:
-                df = pd.read_excel(file_path)
-            elif file_ext == '.json':
-                df = pd.read_json(file_path)
-            else:
+            if file_ext not in SUPPORTED_EXTENSIONS:
                 print(f"Cannot analyze file type: {file_ext}")
                 return
+            df = read_transactions(file_path)
             
             if df.empty:
                 print(f"Empty dataframe for upload {upload_id}")
@@ -266,7 +259,9 @@ class UploadService:
         
         try:
             # Step 1 & 2: Extract features and build graph
-            features, tx_ids, edge_index = ml_service._prepare_graph_data(df, None)
+            # CPU-bound work runs in a worker thread so the event loop (WebSocket
+            # progress, other requests) stays responsive during analysis.
+            features, tx_ids, edge_index = await run_in_threadpool(ml_service._prepare_graph_data, df, None)
             
             if features is None:
                 return ml_service._fallback_analysis(df)
@@ -277,8 +272,10 @@ class UploadService:
                 "num_edges": edge_index.shape[1] if edge_index is not None else 0
             })
             
-            # Step 3: Run model prediction
-            predictions, scores = ml_service.predict(features, edge_index)
+            # Step 3: Score nodes (TG-GATv2 and, for ledgers, typology red flags)
+            predictions, scores, gnn_scores, typology = await run_in_threadpool(
+                ml_service.score_nodes, df, features, edge_index, tx_ids
+            )
             
             # Stage: scoring
             await ws_manager.broadcast_analysis_stream(user_id, upload_id, "scoring", 55, {
@@ -292,7 +289,8 @@ class UploadService:
                 edge_index=edge_index,
                 tx_ids=tx_ids,
                 top_k=20,
-                hop=2
+                hop=2,
+                scores=scores,
             )
             results["subgraph"] = subgraph
             
@@ -307,8 +305,8 @@ class UploadService:
                 })
             
             # Step 5: Detect patterns
-            results["patterns"] = ml_service._detect_patterns(
-                df, edge_index, scores, tx_ids
+            results["patterns"] = await run_in_threadpool(
+                ml_service._detect_patterns, df, edge_index, scores, tx_ids
             )
             
             # Stream each pattern as detected
@@ -319,7 +317,7 @@ class UploadService:
             
             # Step 6: Find suspicious addresses
             results["suspicious_addresses"] = ml_service._find_suspicious_addresses(
-                df, scores, tx_ids
+                df, scores, tx_ids, typology=typology, gnn_scores=gnn_scores
             )
             
             # Summary statistics
@@ -390,9 +388,9 @@ class UploadService:
         if not upload or upload.get("user_id") != user_id:
             return False
         
-        # Delete file
-        file_path = Path(upload.get("file_path", ""))
-        if file_path.exists():
+        # Delete file (stored as <upload_id><ext> in the upload dir)
+        file_path = find_upload_file(self.upload_dir, upload_id)
+        if file_path is not None and file_path.is_file():
             file_path.unlink()
         
         # Delete from database

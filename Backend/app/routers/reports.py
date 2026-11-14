@@ -79,11 +79,11 @@ async def list_reports(
             ReportListItem(
                 id=r["id"],
                 name=r.get("name", f"Report {r['id'][:8]}"),
-                uploadId=r["upload_id"],
+                uploadId=r.get("uploadId", r.get("upload_id")),
                 type=r["type"],
                 format=r["format"],
                 status=r["status"],
-                createdAt=r["created_at"],
+                createdAt=r.get("createdAt", r.get("created_at")),
                 fileSize=r.get("size")
             )
             for r in reports
@@ -115,10 +115,10 @@ async def get_report(
     
     return ReportResponse(
         id=report["id"],
-        uploadId=report["upload_id"],
+        uploadId=report.get("uploadId", report.get("upload_id")),
         type=report["type"],
         status=report["status"],
-        createdAt=report["created_at"],
+        createdAt=report.get("createdAt", report.get("created_at")),
         fileSize=report.get("size"),
         downloadUrl=f"/api/v1/reports/download/{report_id}" if report["status"] == "completed" else None
     )
@@ -142,7 +142,7 @@ async def download_report(
     
     content = report_file["content"]
     filename = report_file["filename"]
-    media_type = report_file["media_type"]
+    media_type = report_file.get("mediaType", report_file.get("media_type"))
     
     return StreamingResponse(
         io.BytesIO(content),

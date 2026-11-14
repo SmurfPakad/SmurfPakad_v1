@@ -40,8 +40,8 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
         email=user["email"],
         name=user.get("name"),
         avatar=user.get("avatar"),
-        createdAt=user["created_at"],
-        lastLogin=user.get("last_login")
+        createdAt=user.get("createdAt", user.get("created_at")),
+        lastLogin=user.get("lastLogin", user.get("last_login"))
     )
 
 
@@ -72,8 +72,8 @@ async def update_profile(
         email=user["email"],
         name=user.get("name"),
         avatar=user.get("avatar"),
-        createdAt=user["created_at"],
-        lastLogin=user.get("last_login")
+        createdAt=user.get("createdAt", user.get("created_at")),
+        lastLogin=user.get("lastLogin", user.get("last_login"))
     )
 
 
@@ -88,14 +88,14 @@ async def get_notification_settings(current_user: dict = Depends(get_current_use
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
-    settings = user.get("notification_settings", {})
+    settings = user.get("notificationSettings", user.get("notification_settings", {}))
     
     return NotificationSettings(
-        emailAlerts=settings.get("email_alerts", True),
-        uploadComplete=settings.get("upload_complete", True),
-        analysisComplete=settings.get("analysis_complete", True),
-        suspiciousActivity=settings.get("suspicious_activity", True),
-        weeklyDigest=settings.get("weekly_digest", False)
+        emailAlerts=settings.get("emailAlerts", settings.get("email_alerts", True)),
+        uploadComplete=settings.get("uploadComplete", settings.get("upload_complete", True)),
+        analysisComplete=settings.get("analysisComplete", settings.get("analysis_complete", True)),
+        suspiciousActivity=settings.get("suspiciousActivity", settings.get("suspicious_activity", True)),
+        weeklyDigest=settings.get("weeklyDigest", settings.get("weekly_digest", False))
     )
 
 
@@ -130,12 +130,12 @@ async def get_security_settings(current_user: dict = Depends(get_current_user)):
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
-    settings = user.get("security_settings", {})
+    settings = user.get("securitySettings", user.get("security_settings", {}))
     
     return SecuritySettings(
-        twoFactorEnabled=settings.get("two_factor_enabled", False),
-        sessionTimeout=settings.get("session_timeout", 60),
-        ipWhitelist=settings.get("ip_whitelist", [])
+        twoFactorEnabled=settings.get("twoFactorEnabled", settings.get("two_factor_enabled", False)),
+        sessionTimeout=settings.get("sessionTimeout", settings.get("session_timeout", 60)),
+        ipWhitelist=settings.get("ipWhitelist", settings.get("ip_whitelist", []))
     )
 
 
@@ -171,9 +171,9 @@ async def list_api_keys(current_user: dict = Depends(get_current_user)):
                 id=k["id"],
                 name=k["name"],
                 prefix=k["prefix"],
-                createdAt=k["created_at"],
-                lastUsed=k.get("last_used"),
-                expiresAt=k.get("expires_at")
+                createdAt=k.get("createdAt", k.get("created_at")),
+                lastUsed=k.get("lastUsed", k.get("last_used")),
+                expiresAt=k.get("expiresAt", k.get("expires_at"))
             )
             for k in keys
         ]
@@ -208,8 +208,8 @@ async def create_api_key(
         name=key_data["name"],
         key=full_key,
         prefix=prefix,
-        createdAt=key_data["created_at"],
-        expiresAt=key_data.get("expires_at")
+        createdAt=key_data.get("createdAt", key_data.get("created_at")),
+        expiresAt=key_data.get("expiresAt", key_data.get("expires_at"))
     )
 
 
@@ -240,8 +240,8 @@ async def list_webhooks(current_user: dict = Depends(get_current_user)):
                 url=w["url"],
                 events=w["events"],
                 active=w["active"],
-                createdAt=w["created_at"],
-                lastTriggered=w.get("last_triggered")
+                createdAt=w.get("createdAt", w.get("created_at")),
+                lastTriggered=w.get("lastTriggered", w.get("last_triggered"))
             )
             for w in webhooks
         ]
@@ -273,7 +273,7 @@ async def create_webhook(
         url=webhook["url"],
         events=webhook["events"],
         active=webhook["active"],
-        createdAt=webhook["created_at"]
+        createdAt=webhook.get("createdAt", webhook.get("created_at"))
     )
 
 
@@ -304,7 +304,7 @@ async def update_webhook(
         url=webhook["url"],
         events=webhook["events"],
         active=webhook["active"],
-        createdAt=webhook["created_at"]
+        createdAt=webhook.get("createdAt", webhook.get("created_at"))
     )
 
 

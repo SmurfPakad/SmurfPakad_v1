@@ -1,22 +1,36 @@
 """
-Local SQLite Database Configuration with SQLAlchemy
+Database configuration (SQLAlchemy).
+
+Works with any SQLAlchemy URL via the DATABASE_URL setting:
+  * SQLite (default, zero setup):  sqlite:///./smurfpakad.db
+  * PostgreSQL:                    postgresql+psycopg2://user:pass@host:5432/smurfpakad
+    (plain postgres:// / postgresql:// URLs from Render, Railway, Neon, Supabase … are
+    normalised automatically)
 """
-from sqlalchemy import create_engine, Column, String, DateTime, Integer, Float, Text, Boolean, ForeignKey, Index
+from sqlalchemy import create_engine, Column, String, DateTime, Integer, Float, Text, Boolean, ForeignKey, Index, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
-from sqlalchemy.dialects.sqlite import JSON
 from datetime import datetime
-import os
 import uuid
 
 from app.config import settings
 
-# Create SQLite database
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./smurfpakad.db")
+
+def _normalise_url(url: str) -> str:
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql://"):]
+    return url
+
+
+DATABASE_URL = _normalise_url(settings.DATABASE_URL)
+IS_SQLITE = DATABASE_URL.startswith("sqlite")
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=settings.DEBUG
+    connect_args={"check_same_thread": False} if IS_SQLITE else {},
+    pool_pre_ping=not IS_SQLITE,
+    echo=False,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

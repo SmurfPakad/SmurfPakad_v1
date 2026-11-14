@@ -11,10 +11,29 @@ from app.core.security import create_access_token, create_refresh_token
 from app.core.database import SessionLocal, User
 
 
+DEMO_AUTH_CODE = "mock_auth_code"
+DEMO_USER = {
+    "id": "demo-analyst",
+    "email": "analyst@smurfpakad.demo",
+    "name": "Demo Analyst",
+    "avatar": None,
+}
+
+
+def google_oauth_configured() -> bool:
+    cid = settings.GOOGLE_CLIENT_ID or ""
+    return bool(cid) and not cid.startswith("your-") and cid != "key-here"
+
+
 class AuthService:
     """
-    Service for authentication operations using local SQLite database
+    Service for authentication operations (SQLAlchemy: SQLite or PostgreSQL)
     """
+
+    @staticmethod
+    def is_demo_code(code: str) -> bool:
+        """The demo code only works while Google OAuth is not configured."""
+        return code == DEMO_AUTH_CODE and not google_oauth_configured()
     
     def _get_db(self) -> Session:
         """Get database session"""
@@ -59,7 +78,9 @@ class AuthService:
         """
         Handle OAuth login flow
         """
-        if provider == "google":
+        if provider == "google" and self.is_demo_code(code):
+            user_info = DEMO_USER
+        elif provider == "google":
             user_info = await self._google_oauth(code)
         else:
             raise ValueError(f"Unsupported provider: {provider}")

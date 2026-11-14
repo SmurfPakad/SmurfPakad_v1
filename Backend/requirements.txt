@@ -17,12 +17,13 @@ pydantic-settings>=2.0.0
 python-multipart>=0.0.6
 
 # Authentication & Security
-python-jose[cryptography]>=3.3.0
+PyJWT>=2.8.0
 passlib[bcrypt]>=1.7.4
 httpx>=0.24.0
 
-# Database
+# Database (SQLite by default; PostgreSQL via DATABASE_URL)
 sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
 
 # File Processing
 openpyxl>=3.1.0

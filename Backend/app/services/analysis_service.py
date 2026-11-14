@@ -9,6 +9,8 @@ import pandas as pd
 
 from app.core.database_service import database_service
 from app.services.ml_service import ml_service
+from fastapi.concurrency import run_in_threadpool
+from app.services.tabular import find_upload_file, read_transactions
 from app.config import settings
 
 
@@ -25,20 +27,9 @@ class AnalysisService:
     
     def _load_upload_file(self, upload_id: str, filename: str) -> pd.DataFrame:
         """Load the uploaded file from disk"""
-        # Files are stored as {upload_id}.csv in uploads folder
-        upload_dir = Path(settings.UPLOAD_DIR)
-        
-        # Try different extensions
-        for ext in ['.csv', '.xlsx', '.xls', '.json']:
-            file_path = upload_dir / f"{upload_id}{ext}"
-            if file_path.exists():
-                if ext == '.csv':
-                    return pd.read_csv(file_path)
-                elif ext in ['.xlsx', '.xls']:
-                    return pd.read_excel(file_path)
-                elif ext == '.json':
-                    return pd.read_json(file_path)
-        
+        file_path = find_upload_file(Path(settings.UPLOAD_DIR), upload_id)
+        if file_path is not None:
+            return read_transactions(file_path)
         raise ValueError(f"Upload file not found for {upload_id}")
     
     async def run_ml_analysis(
@@ -77,7 +68,7 @@ class AnalysisService:
             raise ValueError("No transactions found in uploaded file")
         
         # Run ML analysis
-        results = ml_service.analyze_transactions(df)
+        results = await run_in_threadpool(ml_service.analyze_transactions, df)
         
         # Extract key metrics for storage in analysis_results table
         summary = results.get("summary", {})

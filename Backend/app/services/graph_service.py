@@ -9,6 +9,7 @@ import networkx as nx
 
 from app.core.database_service import database_service
 from app.services.ml_service import ml_service
+from app.services.tabular import find_upload_file, read_transactions
 from app.config import settings
 
 
@@ -22,19 +23,8 @@ class GraphService:
     
     def _load_upload_file(self, upload_id: str) -> pd.DataFrame:
         """Load the uploaded file from disk"""
-        upload_dir = Path(settings.UPLOAD_DIR)
-        
-        for ext in ['.csv', '.xlsx', '.xls', '.json']:
-            file_path = upload_dir / f"{upload_id}{ext}"
-            if file_path.exists():
-                if ext == '.csv':
-                    return pd.read_csv(file_path)
-                elif ext in ['.xlsx', '.xls']:
-                    return pd.read_excel(file_path)
-                elif ext == '.json':
-                    return pd.read_json(file_path)
-        
-        return pd.DataFrame()
+        file_path = find_upload_file(Path(settings.UPLOAD_DIR), upload_id)
+        return read_transactions(file_path) if file_path is not None else pd.DataFrame()
     
     async def get_graph_data(
         self,
@@ -97,6 +87,33 @@ class GraphService:
             assert any(G.in_degree(n) > 0 or G.out_degree(n) > 0 for n in G.nodes()), \
                 "Graph error: all wallet degrees are zero"
         
+        # Per-wallet send/receive counts (used for node type) — O(rows), not O(nodes x rows)
+        from collections import Counter
+        send_counts = Counter(e["source"] for e in edge_list)
+        recv_counts = Counter(e["target"] for e in edge_list)
+
+        # Same risk model as the analysis pipeline, so graph colours match the report
+        typology = None
+        if "Source_Wallet_ID" in df.columns and "Dest_Wallet_ID" in df.columns and G.number_of_nodes():
+            from app.services.typology import score_wallets
+            typology = score_wallets(df, [str(n) for n in G.nodes()])
+
+        def risk_for(wallet: str, in_deg: int, out_deg: int):
+            if typology is not None:
+                t = typology[wallet]
+                return t.score, t.reasons, sorted(t.flags.keys())
+            return self._compute_wallet_risk(in_deg, out_deg), [], []
+
+        def node_type(wallet: str) -> str:
+            sent, recv = send_counts.get(wallet, 0), recv_counts.get(wallet, 0)
+            if sent > recv * 2:
+                return "sender"
+            if recv > sent * 2:
+                return "receiver"
+            if sent > 10 and recv > 10:
+                return "exchange"
+            return "unknown"
+
         # Second pass: Build node objects with correct degrees computed AFTER all edges added
         nodes = {}
         for tx in transactions:
@@ -116,13 +133,14 @@ class GraphService:
             if source not in nodes:
                 in_deg = G.in_degree(source)
                 out_deg = G.out_degree(source)
-                # Compute heuristic-based risk score from structural patterns
-                risk_score = self._compute_wallet_risk(in_deg, out_deg)
+                risk_score, reasons, flags = risk_for(source, in_deg, out_deg)
                 risk_level = self._get_risk_level(risk_score)
                 nodes[source] = {
                     "id": source,
                     "address": source,
-                    "type": self._infer_node_type(source, transactions),
+                    "type": node_type(source),
+                    "reasons": reasons,
+                    "flags": flags,
                     "riskLevel": risk_level,
                     "risk_level": risk_level,
                     "degree": {"in": in_deg, "out": out_deg},
@@ -137,13 +155,14 @@ class GraphService:
             if target not in nodes:
                 in_deg = G.in_degree(target)
                 out_deg = G.out_degree(target)
-                # Compute heuristic-based risk score from structural patterns
-                risk_score = self._compute_wallet_risk(in_deg, out_deg)
+                risk_score, reasons, flags = risk_for(target, in_deg, out_deg)
                 risk_level = self._get_risk_level(risk_score)
                 nodes[target] = {
                     "id": target,
                     "address": target,
-                    "type": self._infer_node_type(target, transactions),
+                    "type": node_type(target),
+                    "reasons": reasons,
+                    "flags": flags,
                     "riskLevel": risk_level,
                     "risk_level": risk_level,
                     "degree": {"in": in_deg, "out": out_deg},
@@ -154,6 +173,12 @@ class GraphService:
             nodes[target]["transactionCount"] += 1
             nodes[target]["totalAmount"] += float(amount) if amount else 0
         
+        # An edge is suspicious when both ends are at least medium risk
+        for e in edge_list:
+            e["suspicious"] = (
+                nodes.get(e["source"], {}).get("suspiciousScore", 0) >= 0.35
+                and nodes.get(e["target"], {}).get("suspiciousScore", 0) >= 0.35
+            )
         edges = edge_list
         
         result = {

@@ -176,47 +176,65 @@ class SmurfHunterGNNModel(torch.nn.Module):
 
 class BestModelTG(torch.nn.Module):
     """
-    Architecture matching best_model_tg.pt (trained on 43-feature Elliptic subset).
-    Keys: conv1/conv2/conv3 (GATv2Conv), bn1/bn2/bn3 (BatchNorm1d), classifier (Linear)
-    Shape confirmed: lin_l=[64,43], heads=4, head_dim=16, hidden=64, classifier=[2,128]
+    Exact inference twin of ``SmurfDetector`` in ``AI/train_tg_gatv2.py``
+    (checkpoint: ``AI/All_models/best_model_tg.pt``).
+
+    * Temperature-Gated GATv2Conv (learnable per-head softmax temperature)
+    * conv -> BatchNorm -> ReLU, three times
+    * Readout: concat(mean-pool, max-pool) of the final embeddings -> Linear(128, 2)
+
+    The model was trained as a *subgraph* classifier on Elliptic2 (avg 3.6 nodes per
+    subgraph). To score individual wallets in an uploaded graph we apply the same
+    readout over each node's closed 1-hop neighbourhood (its ego-subgraph), which is
+    the closest analogue to the small subgraphs seen during training.
     """
+
     def __init__(self, in_channels: int = 43, hidden_channels: int = 64,
-                 out_channels: int = 2, heads: int = 4, dropout: float = 0.3):
+                 out_channels: int = 2, heads: int = 4, dropout: float = 0.4):
         super().__init__()
+        from app.services.gatv2_conv import GATv2Conv as TGGATv2Conv
+
         self.dropout = dropout
         head_dim = hidden_channels // heads  # 16
-
-        # conv1: in_channels → heads * head_dim = 64
-        self.conv1 = GATv2Conv(in_channels, head_dim, heads=heads,
-                               dropout=dropout, add_self_loops=True, concat=True)
+        self.conv1 = TGGATv2Conv(in_channels, head_dim, heads=heads)
         self.bn1 = nn.BatchNorm1d(hidden_channels)
-
-        # conv2: 64 → 64
-        self.conv2 = GATv2Conv(hidden_channels, head_dim, heads=heads,
-                               dropout=dropout, add_self_loops=True, concat=True)
+        self.conv2 = TGGATv2Conv(hidden_channels, head_dim, heads=heads)
         self.bn2 = nn.BatchNorm1d(hidden_channels)
-
-        # conv3: 64 → 64
-        self.conv3 = GATv2Conv(hidden_channels, head_dim, heads=heads,
-                               dropout=dropout, add_self_loops=True, concat=True)
+        self.conv3 = TGGATv2Conv(hidden_channels, head_dim, heads=heads)
         self.bn3 = nn.BatchNorm1d(hidden_channels)
-
-        # Classifier: 128 → 2 (cat of conv2 + conv3 outputs)
         self.classifier = nn.Linear(hidden_channels * 2, out_channels)
 
+    def embed(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        for conv, bn in ((self.conv1, self.bn1), (self.conv2, self.bn2), (self.conv3, self.bn3)):
+            x = F.relu(bn(conv(x, edge_index)))
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        return x
+
+    @staticmethod
+    def ego_readout(h: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        """concat(mean, max) of h over each node's closed undirected 1-hop neighbourhood."""
+        from torch_geometric.utils import scatter, to_undirected, add_self_loops
+
+        n = h.size(0)
+        ei = to_undirected(edge_index, num_nodes=n) if edge_index.numel() else edge_index
+        ei, _ = add_self_loops(ei, num_nodes=n)
+        src, dst = ei
+        mean = scatter(h[src], dst, dim=0, dim_size=n, reduce="mean")
+        mx = scatter(h[src], dst, dim=0, dim_size=n, reduce="max")
+        return torch.cat([mean, mx], dim=-1)
+
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
-        h1 = F.elu(self.bn1(self.conv1(x, edge_index)))
-        h1 = F.dropout(h1, p=self.dropout, training=self.training)
-        h2 = F.elu(self.bn2(self.conv2(h1, edge_index)))
-        h2 = F.dropout(h2, p=self.dropout, training=self.training)
-        h3 = F.elu(self.bn3(self.conv3(h2, edge_index)))
-        out = self.classifier(torch.cat([h2, h3], dim=-1))
-        return out
+        h = self.embed(x, edge_index)
+        return self.classifier(self.ego_readout(h, edge_index))
 
     def get_embeddings(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
-        h1 = F.elu(self.bn1(self.conv1(x, edge_index)))
-        h2 = F.elu(self.bn2(self.conv2(h1, edge_index)))
-        return h2
+        return self.embed(x, edge_index)
+
+    def temperatures(self) -> Dict[str, List[float]]:
+        return {
+            name: getattr(self, name).temperature.detach().view(-1).cpu().tolist()
+            for name in ("conv1", "conv2", "conv3")
+        }
 
 
 class SmurfHunterService:
@@ -234,8 +252,40 @@ class SmurfHunterService:
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model_loaded = False
+        self.model_path: Optional[str] = None
+        self._model_type: Optional[str] = None
         # Will be updated when model is loaded based on actual architecture
         self.expected_features = 43  # best_model_tg.pt uses 43 features
+        # Validation-optimal decision threshold for TG-GATv2 (see docs/findings.md)
+        self.decision_threshold = 0.70
+
+    # Held-out test metrics on Elliptic2 (docs/findings.md, section 6)
+    PUBLISHED_METRICS = {
+        "dataset": "Elliptic2 (121,810 subgraphs, 2.27% suspicious)",
+        "split": "temporal 72/8/20",
+        "tg_gatv2": {"f1": 0.5640, "pr_auc": 0.6042, "precision": 0.6117, "recall": 0.5232, "threshold": 0.70},
+        "gatv2_baseline": {"f1": 0.5558, "pr_auc": 0.5906, "precision": 0.6988, "recall": 0.4614, "threshold": 0.79},
+        "confusion_matrix": {"tn": 23672, "fp": 172, "fn": 247, "tp": 271},
+    }
+
+    def model_info(self) -> Dict:
+        """Architecture, learned attention temperatures and published metrics."""
+        if not self.model_loaded:
+            self.load_model()
+        info = {
+            "loaded": self.model_loaded,
+            "modelType": self._model_type,
+            "checkpoint": Path(self.model_path).name if self.model_path else None,
+            "device": str(self.device),
+            "inputFeatures": self.expected_features,
+            "decisionThreshold": self.decision_threshold,
+            "parameters": int(sum(p.numel() for p in self.model.parameters())) if self.model is not None else 0,
+            "metrics": self.PUBLISHED_METRICS,
+            "temperatures": None,
+        }
+        if isinstance(self.model, BestModelTG):
+            info["temperatures"] = self.model.temperatures()
+        return info
     
     def load_model(self, model_path: Optional[str] = None):
         """
@@ -312,7 +362,6 @@ class SmurfHunterService:
                     hidden_channels=hidden_channels,
                     out_channels=2,
                     heads=heads,
-                    dropout=0.3,
                 )
                 self._model_type = 'best_model_tg'
                 print(f"Using BestModelTG architecture: in={in_channels}, hidden={hidden_channels}, heads={heads}")
@@ -338,17 +387,19 @@ class SmurfHunterService:
                 self._model_type = 'graphsage'
                 print(f"Using legacy GraphSAGE architecture")
             
-            # Load trained weights (strict=False handles custom GATv2 with temperature param)
+            # Load trained weights. A checkpoint from stock PyG GATv2 has no
+            # `temperature` params; they then default to 1.0 (== standard GATv2).
             missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
             if missing:
-                print(f"Missing keys (will use defaults): {missing}")
+                print(f"Missing keys (using defaults): {missing}")
             if unexpected:
-                print(f"Ignoring extra keys from custom trainer: {unexpected}")
+                print(f"WARNING: checkpoint keys not used by the model: {unexpected}")
             self.model.to(self.device)
             self.model.eval()
             self.model_loaded = True
-            
-            print(f"[OK] Smurf Hunter model loaded successfully on {self.device}")
+            self.model_path = model_path
+
+            print(f"[OK] Smurf Hunter model ({self._model_type}) loaded on {self.device}")
             return True
             
         except Exception as e:
@@ -402,6 +453,32 @@ class SmurfHunterService:
         
         return predictions, suspicious_scores
     
+    @staticmethod
+    def is_wallet_ledger(df: pd.DataFrame) -> bool:
+        return "Source_Wallet_ID" in df.columns and "Dest_Wallet_ID" in df.columns
+
+    def score_nodes(self, df: pd.DataFrame, features: np.ndarray, edge_index: np.ndarray, node_ids: List):
+        """Final per-node risk scores.
+
+        * Elliptic-style uploads (the model's training domain): TG-GATv2 probability.
+        * Wallet ledgers (sender/receiver/amount/time): interpretable typology score
+          (structuring, fan-in/out, velocity, pass-through, cross-app identity, one-hop
+          propagation). The GNN probability is still returned as ``gnn_scores`` but is
+          out-of-domain for these features, so it does not drive the risk level.
+
+        Returns (predictions, scores, gnn_scores, typology_by_node_or_None)
+        """
+        predictions, gnn_scores = self.predict(features, edge_index)
+        if not self.is_wallet_ledger(df):
+            predictions = (gnn_scores >= self.decision_threshold).astype(int)
+            return predictions, gnn_scores, gnn_scores, None
+
+        from app.services.typology import score_wallets
+        typ = score_wallets(df, [str(n) for n in node_ids])
+        scores = np.array([typ[str(n)].score for n in node_ids], dtype=np.float64)
+        predictions = (scores >= 0.5).astype(int)
+        return predictions, scores, gnn_scores, typ
+
     def _prepare_features_for_model(self, features: np.ndarray) -> np.ndarray:
         """
         Prepare features to match model's expected input (165 features)
@@ -413,7 +490,18 @@ class SmurfHunterService:
             features = np.hstack([features, padding])
         elif features.shape[1] > self.expected_features:
             features = features[:, :self.expected_features]
-        
+
+        features = np.nan_to_num(features.astype(np.float64), nan=0.0, posinf=0.0, neginf=0.0)
+
+        # The model was trained on StandardScaler-normalised features. The fitted
+        # scaler is not shipped, so standardise per upload (constant columns -> 0).
+        if features.shape[0] > 1:
+            mean = features.mean(axis=0)
+            std = features.std(axis=0)
+            nonconst = std > 1e-8
+            features[:, nonconst] = (features[:, nonconst] - mean[nonconst]) / std[nonconst]
+            features[:, ~nonconst] = 0.0
+
         # Clip extreme values for stability
         features = np.clip(features, -5.0, 5.0)
         
@@ -425,7 +513,8 @@ class SmurfHunterService:
         edge_index: np.ndarray,
         tx_ids: List,
         top_k: int = 20,
-        hop: int = 2
+        hop: int = 2,
+        scores: Optional[np.ndarray] = None,
     ) -> Dict:
         """
         Extract subgraph centered on top-K suspicious nodes with k-hop neighborhoods
@@ -448,7 +537,11 @@ class SmurfHunterService:
             Dict with nodes, edges, and metadata for visualization
         """
         # Run model prediction to get suspicious scores
-        predictions, suspicious_scores = self.predict(features, edge_index)
+        if scores is not None:
+            suspicious_scores = np.asarray(scores)
+            predictions = (suspicious_scores >= 0.5).astype(int)
+        else:
+            predictions, suspicious_scores = self.predict(features, edge_index)
         
         num_nodes = len(tx_ids)
         
@@ -711,16 +804,19 @@ class SmurfHunterService:
             if features is None:
                 return self._fallback_analysis(transactions_df)
             
-            # Step 3: Run model prediction
-            predictions, scores = self.predict(features, edge_index)
-            
+            # Step 3: Score nodes (TG-GATv2 and, for ledgers, typology red flags)
+            predictions, scores, gnn_scores, typology = self.score_nodes(
+                transactions_df, features, edge_index, tx_ids
+            )
+
             # Step 4: Extract suspicious subgraph for visualization
             subgraph = self.extract_suspicious_subgraph(
                 features=features,
                 edge_index=edge_index,
                 tx_ids=tx_ids,
                 top_k=20,
-                hop=2
+                hop=2,
+                scores=scores,
             )
             results["subgraph"] = subgraph
             
@@ -741,7 +837,7 @@ class SmurfHunterService:
             
             # Step 6: Find suspicious addresses
             results["suspicious_addresses"] = self._find_suspicious_addresses(
-                transactions_df, scores, tx_ids
+                transactions_df, scores, tx_ids, typology=typology, gnn_scores=gnn_scores
             )
             
             # Summary statistics
@@ -812,7 +908,10 @@ class SmurfHunterService:
         numeric_cols = transactions_df.select_dtypes(include=[np.number]).columns.tolist()
         
         # Remove ID columns from features
-        feature_cols = [c for c in numeric_cols if c not in ['txId', 'transaction_id', 'id']]
+        # Remove ID columns and ground-truth labels (label leakage) from features
+        from app.services.tabular import label_columns
+        excluded = {'txId', 'transaction_id', 'id', *label_columns(transactions_df)}
+        feature_cols = [c for c in numeric_cols if c not in excluded]
         
         if len(feature_cols) == 0:
             return None, tx_ids, np.array([[0, 0]])
@@ -846,17 +945,13 @@ class SmurfHunterService:
         
         num_wallets = len(wallet_ids)
         
-        # Build edges from transactions
-        sources = []
-        targets = []
-        for _, row in transactions_df.iterrows():
-            src = str(row[source_col]) if pd.notna(row[source_col]) else None
-            tgt = str(row[target_col]) if pd.notna(row[target_col]) else None
-            
-            if src and tgt and src in wallet_to_idx and tgt in wallet_to_idx:
-                sources.append(wallet_to_idx[src])
-                targets.append(wallet_to_idx[tgt])
-        
+        # Build edges from transactions (vectorised — iterrows is O(rows) Python calls)
+        valid = transactions_df[source_col].notna() & transactions_df[target_col].notna()
+        src_idx = transactions_df.loc[valid, source_col].astype(str).map(wallet_to_idx)
+        tgt_idx = transactions_df.loc[valid, target_col].astype(str).map(wallet_to_idx)
+        sources = src_idx.astype(np.int64).tolist()
+        targets = tgt_idx.astype(np.int64).tolist()
+
         # Store the number of DIRECTED edges (before adding reverse)
         num_directed_edges = len(sources)
         
@@ -879,24 +974,19 @@ class SmurfHunterService:
                 break
         
         features = np.zeros((num_wallets, self.expected_features), dtype=np.float32)
-        
-        for _, row in transactions_df.iterrows():
-            src = str(row[source_col]) if pd.notna(row[source_col]) else None
-            tgt = str(row[target_col]) if pd.notna(row[target_col]) else None
-            amt = float(row[amount_col]) if amount_col and pd.notna(row.get(amount_col)) else 1.0
-            
-            if src and src in wallet_to_idx:
-                idx = wallet_to_idx[src]
-                features[idx, 0] += 1  # out_degree
-                features[idx, 2] += amt  # total_sent
-                features[idx, 4] += 1  # tx_count
-            
-            if tgt and tgt in wallet_to_idx:
-                idx = wallet_to_idx[tgt]
-                features[idx, 1] += 1  # in_degree
-                features[idx, 3] += amt  # total_received
-                features[idx, 4] += 1  # tx_count
-        
+
+        if amount_col:
+            amounts = pd.to_numeric(transactions_df[amount_col], errors="coerce").fillna(1.0).to_numpy(np.float64)
+        else:
+            amounts = np.ones(len(transactions_df), dtype=np.float64)
+
+        for col, out_deg_col, amt_col in ((source_col, 0, 2), (target_col, 1, 3)):
+            mask = transactions_df[col].notna().to_numpy()
+            idx = transactions_df.loc[mask, col].astype(str).map(wallet_to_idx).to_numpy(np.int64)
+            np.add.at(features[:, out_deg_col], idx, 1.0)      # out_degree / in_degree
+            np.add.at(features[:, amt_col], idx, amounts[mask])  # total_sent / total_received
+            np.add.at(features[:, 4], idx, 1.0)               # tx_count
+
         # Compute derived features
         for i in range(num_wallets):
             tx_count = features[i, 4]
@@ -995,13 +1085,34 @@ class SmurfHunterService:
         self,
         df: pd.DataFrame,
         scores: np.ndarray,
-        tx_ids: List
+        tx_ids: List,
+        typology: Optional[Dict] = None,
+        gnn_scores: Optional[np.ndarray] = None,
     ) -> List[Dict]:
         """
         Identify suspicious addresses from predictions
         Groups transactions by address and aggregates risk scores
         """
         suspicious = []
+
+        if typology is not None:
+            counts = pd.concat([df["Source_Wallet_ID"], df["Dest_Wallet_ID"]]).astype(str).value_counts()
+            for i, node in enumerate(tx_ids):
+                t = typology[str(node)]
+                if t.score < 0.35:
+                    continue
+                suspicious.append({
+                    "address": str(node),
+                    "riskLevel": self._get_risk_level(t.score),
+                    "suspiciousScore": float(t.score),
+                    "transactionCount": int(counts.get(str(node), 0)),
+                    "avgScore": float(t.score),
+                    "gnnScore": float(gnn_scores[i]) if gnn_scores is not None else None,
+                    "flags": sorted(t.flags.keys()),
+                    "reasons": t.reasons,
+                })
+            suspicious.sort(key=lambda x: x["suspiciousScore"], reverse=True)
+            return suspicious[:100]
         
         # Get address column
         addr_col = None

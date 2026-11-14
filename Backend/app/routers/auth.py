@@ -10,7 +10,7 @@ from app.schemas.auth import (
     LogoutResponse,
     UserResponse
 )
-from app.services.auth_service import auth_service
+from app.services.auth_service import auth_service, google_oauth_configured
 from app.dependencies import get_current_user
 from app.config import settings
 
@@ -27,8 +27,8 @@ async def google_oauth_redirect():
     # This should be the FRONTEND callback URL where Google sends the code
     redirect_uri = f"{settings.FRONTEND_URL}/cryptoflow/auth/callback"
     
-    if not client_id or client_id == "your-google-client-id":
-        # Return a mock URL for development
+    if not google_oauth_configured():
+        # Demo mode: sign in as the demo analyst without Google
         return {
             "authorization_url": f"{settings.FRONTEND_URL}/cryptoflow/auth/callback?code=mock_auth_code"
         }
@@ -133,7 +133,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         name=user["name"],
         email=user["email"],
         avatar=user.get("avatar"),
-        createdAt=user.get("created_at")
+        createdAt=user.get("created_at") or user.get("createdAt")
     )
 
 
@@ -155,5 +155,5 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
         name=user["name"],
         email=user["email"],
         avatar=user.get("avatar"),
-        createdAt=user.get("created_at")
+        createdAt=user.get("created_at") or user.get("createdAt")
     )

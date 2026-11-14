@@ -10,7 +10,13 @@ class GraphNode(BaseModel):
     label: str
     type: str
     riskScore: float
+    riskLevel: str = "low"
+    risk_level: str = "low"            # snake_case alias consumed by the graph UI
+    suspicious_score: float = 0.0
     suspicious: bool
+    degree: Dict[str, int] = {}
+    reasons: List[str] = []
+    flags: List[str] = []
     metadata: Dict[str, Any] = {}
 
 
@@ -19,6 +25,8 @@ class GraphEdge(BaseModel):
     target: str
     weight: float
     transactionCount: int
+    high_risk: bool = False
+    timestamp: Optional[str] = None
     metadata: Dict[str, Any] = {}
 
 

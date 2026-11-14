@@ -484,7 +484,7 @@ class DatabaseService:
                     "suspiciousScore": a.suspicious_score,
                     "transactionCount": a.transaction_count,
                     "totalAmount": a.total_amount,
-                    "avgScore": a.avg_score,
+                    "avgScore": addr.avg_score,
                     "flags": a.flags,
                     "firstSeen": a.first_seen.isoformat() if a.first_seen else None,
                     "lastSeen": a.last_seen.isoformat() if a.last_seen else None
@@ -506,17 +506,28 @@ class DatabaseService:
                 SuspiciousAddress.address == address["address"]
             ).delete()
             
+            # Accept both the ML layer's camelCase keys and snake_case
+            def pick(*keys, default=None):
+                for k in keys:
+                    if address.get(k) is not None:
+                        return address[k]
+                return default
+
+            score = float(pick("suspiciousScore", "suspicious_score", default=0.0))
+            first_seen = pick("firstSeen", "first_seen")
+            last_seen = pick("lastSeen", "last_seen")
             addr = SuspiciousAddress(
                 upload_id=upload_id,
-                address=address["address"],
-                risk_level=address["risk_level"],
-                suspicious_score=address.get("suspicious_score", 0),
-                transaction_count=address.get("transaction_count", 0),
-                total_amount=address.get("total_amount", 0),
-                avg_score=address.get("avg_score", 0),
-                flags=address.get("flags", []),
-                first_seen=datetime.fromisoformat(address["first_seen"]) if address.get("first_seen") else None,
-                last_seen=datetime.fromisoformat(address["last_seen"]) if address.get("last_seen") else None
+                address=str(address["address"]),
+                risk_level=pick("riskLevel", "risk_level", default="low"),
+                suspicious_score=score,
+                transaction_count=int(pick("transactionCount", "transaction_count", default=0)),
+                total_amount=float(pick("totalAmount", "total_amount", default=0.0)),
+                avg_score=float(pick("avgScore", "avg_score", default=score)),
+                # human-readable red-flag reasons are the most useful "flags" for analysts
+                flags=list(pick("reasons", default=None) or pick("flags", default=[]) or []),
+                first_seen=datetime.fromisoformat(first_seen) if isinstance(first_seen, str) else first_seen,
+                last_seen=datetime.fromisoformat(last_seen) if isinstance(last_seen, str) else last_seen,
             )
             db.add(addr)
             db.commit()
@@ -528,7 +539,7 @@ class DatabaseService:
                 "suspiciousScore": addr.suspicious_score,
                 "transactionCount": addr.transaction_count,
                 "totalAmount": addr.total_amount,
-                "avgScore": avg_score,
+                "avgScore": addr.avg_score,
                 "flags": addr.flags,
                 "firstSeen": addr.first_seen.isoformat() if addr.first_seen else None,
                 "lastSeen": addr.last_seen.isoformat() if addr.last_seen else None
@@ -569,7 +580,7 @@ class DatabaseService:
                     "suspiciousScore": addr.suspicious_score,
                     "transactionCount": addr.transaction_count,
                     "totalAmount": addr.total_amount,
-                    "avgScore": avg_score,
+                    "avgScore": addr.avg_score,
                     "flags": addr.flags,
                     "firstSeen": addr.first_seen.isoformat() if addr.first_seen else None,
                     "lastSeen": addr.last_seen.isoformat() if addr.last_seen else None
@@ -772,6 +783,8 @@ class DatabaseService:
                     "id": key.id,
                     "name": key.name,
                     "key": f"{key.prefix}****",  # Masked
+                    "prefix": key.prefix,
+                    "expiresAt": key.expires_at.isoformat() if key.expires_at else None,
                     "createdAt": key.created_at.isoformat() if key.created_at else None,
                     "lastUsed": key.last_used.isoformat() if key.last_used else None,
                     "permissions": key.permissions

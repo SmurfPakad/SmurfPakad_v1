@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # Database (SQLite local)
+    # Database: SQLite by default; set a postgresql:// URL to use PostgreSQL
     DATABASE_URL: str = "sqlite:///./smurfpakad.db"
     
     # OAuth (Google only)
@@ -77,7 +77,6 @@ class Settings(BaseSettings):
     # Extra fields from .env (compatibility)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    OAUTH_REDIRECT_URL: str = "http://localhost:8000/auth/callback"
     
     class Config:
         env_file = ".env"
@@ -85,9 +84,23 @@ class Settings(BaseSettings):
         extra = "ignore"  # Ignore extra fields in .env
 
 
+_INSECURE_JWT_DEFAULTS = {"", "your-super-secret-key-change-in-production", "jwt-key-here"}
+
+
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    if s.JWT_SECRET_KEY in _INSECURE_JWT_DEFAULTS or s.JWT_SECRET_KEY.startswith("your-"):
+        # The placeholder is public in this repo: anyone could forge tokens with it.
+        # Use a random per-process secret instead (tokens reset on restart).
+        import logging
+        import secrets
+        logging.getLogger(__name__).warning(
+            "JWT_SECRET_KEY is not set - using a random secret for this process. "
+            "Set JWT_SECRET_KEY in Backend/.env for persistent sessions."
+        )
+        s.JWT_SECRET_KEY = secrets.token_hex(32)
+    return s
 
 
 settings = get_settings()

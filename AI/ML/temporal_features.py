@@ -129,16 +129,24 @@ class TemporalFeatureEngineer:
             all_wallets.update(df[target_col].dropna().astype(str).unique())
         
         wallet_features = []
-        
+
+        # Parse timestamps and index rows by wallet ONCE (was O(wallets x rows)).
+        if time_col in df.columns:
+            df = df.copy()
+            df[time_col] = pd.to_datetime(df[time_col], errors='coerce')
+        empty = df.iloc[0:0]
+        sent_groups = (
+            {k: v for k, v in df.groupby(df[source_col].astype(str))} if source_col in df.columns else {}
+        )
+        recv_groups = (
+            {k: v for k, v in df.groupby(df[target_col].astype(str))} if target_col in df.columns else {}
+        )
+
         for wallet_id in sorted(all_wallets):
             feats = {'wallet_id': wallet_id}
-            
-            # Transactions sent by this wallet
-            sent_mask = df[source_col].astype(str) == wallet_id if source_col in df.columns else pd.Series(False, index=df.index)
-            recv_mask = df[target_col].astype(str) == wallet_id if target_col in df.columns else pd.Series(False, index=df.index)
-            
-            sent_df = df[sent_mask]
-            recv_df = df[recv_mask]
+
+            sent_df = sent_groups.get(wallet_id, empty)
+            recv_df = recv_groups.get(wallet_id, empty)
             
             # Degree features
             feats['out_degree'] = len(sent_df)
@@ -515,14 +523,10 @@ class TemporalFeatureEngineer:
         if len(timestamps) < 2:
             return 0.0
         
-        timestamps = timestamps.sort_values()
-        max_in_window = 0
-        
-        for i, t in enumerate(timestamps):
-            window_end = t + timedelta(hours=1)
-            count = ((timestamps >= t) & (timestamps <= window_end)).sum()
-            max_in_window = max(max_in_window, count)
-        
+        values = np.sort(timestamps.values)
+        ends = np.searchsorted(values, values + np.timedelta64(1, 'h'), side='right')
+        max_in_window = int((ends - np.arange(len(values))).max())
+
         return min(1.0, max_in_window / len(timestamps))
     
     def _compute_hour_entropy(self, timestamps: pd.Series) -> float:
